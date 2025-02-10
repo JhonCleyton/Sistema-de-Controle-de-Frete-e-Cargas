@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="error-page">
+    <div class="error-container">
+        <!-- Adicione sua logo aqui -->
+        <div class="logo-placeholder">
+            <img src="{{ url_for('static', filename='logo1.0.jpg') }}" alt="Logo" class="error-logo">
+        </div>
+        <h1 class="error-code">404</h1>
+        <h2 class="error-message">Página não encontrada</h2>
+        <p class="error-description">Desculpe, a página que você está procurando não existe ou foi movida.</p>
+        <a href="{{ url_for('index') }}" class="btn btn-primary return-btn">Voltar para a página inicial</a>
+    </div>
+</div>
+
+<style>
+.error-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #f8f9fa;
+}
+
+.error-container {
+    text-align: center;
+    padding: 2rem;
+    max-width: 600px;
+    margin: auto;
+}
+
+.logo-placeholder {
+    margin-bottom: 2rem;
+}
+
+.error-logo {
+    max-width: 200px;
+    height: auto;
+}
+
+.error-code {
+    font-size: 8rem;
+    font-weight: bold;
+    color: #dc3545;
+    margin: 0;
+    line-height: 1;
+}
+
+.error-message {
+    font-size: 2rem;
+    color: #343a40;
+    margin: 1rem 0;
+}
+
+.error-description {
+    color: #6c757d;
+    margin-bottom: 2rem;
+}
+
+.return-btn {
+    padding: 0.75rem 2rem;
+    font-size: 1.1rem;
+    border-radius: 50px;
+    text-transform: uppercase;
+    transition: all 0.3s ease;
+}
+
+.return-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+@media (max-width: 576px) {
+    .error-code {
+        font-size: 6rem;
+    }
+    
+    .error-message {
+        font-size: 1.5rem;
+    }
+}
+</style>
+{% endblock %}

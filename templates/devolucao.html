@@ -1,0 +1,398 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="mt-4">Devoluções</h1>
+    
+    <!-- Formulário de Devolução -->
+    <div class="card mt-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">Nova Devolução</h5>
+        </div>
+        <div class="card-body">
+            <form id="devolucaoForm">
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label for="numero_carga">Número da Carga</label>
+                            <input type="text" class="form-control" id="numero_carga" name="numero_carga" required>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label for="numero_nfe">Número da NFe</label>
+                            <input type="text" class="form-control" id="numero_nfe" name="numero_nfe" required>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label for="tipo_movimento">Tipo de Movimento</label>
+                            <select class="form-control" id="tipo_movimento" name="tipo_movimento" required>
+                                <option value="">Selecione...</option>
+                                <option value="T582">T582 - NFe de entrada própria</option>
+                                <option value="T583">T583 - NFe de entrada do cliente</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label for="transportadora_id">Transportadora</label>
+                            <select class="form-control" id="transportadora_id" name="transportadora_id" required>
+                                <option value="">Selecione...</option>
+                                {% for transportadora in transportadoras %}
+                                <option value="{{ transportadora.id }}">{{ transportadora.nome }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label for="peso_devolvido">Peso Devolvido (kg)</label>
+                            <input type="number" step="0.01" class="form-control" id="peso_devolvido" name="peso_devolvido" required>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label for="valor_mercadoria">Valor da Mercadoria</label>
+                            <input type="number" step="0.01" class="form-control" id="valor_mercadoria" name="valor_mercadoria" required>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label for="qtd_embalagens">Quantidade de Embalagens</label>
+                            <input type="number" class="form-control" id="qtd_embalagens" name="qtd_embalagens" required>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label for="tipo_mercadoria">Tipo de Mercadoria</label>
+                            <input type="text" class="form-control" id="tipo_mercadoria" name="tipo_mercadoria" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-md-12">
+                        <div class="form-group">
+                            <label for="observacoes">Observações</label>
+                            <textarea class="form-control" id="observacoes" name="observacoes" rows="2"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-md-12">
+                        <button type="submit" class="btn btn-primary">Registrar Devolução</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Lista de Devoluções -->
+    <div class="card mt-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">Devoluções Registradas</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped" id="devolucoesTable">
+                    <thead>
+                        <tr>
+                            <th>Carga</th>
+                            <th>NFe</th>
+                            <th>Data</th>
+                            <th>Tipo Mov.</th>
+                            <th>Embalagens</th>
+                            <th>Peso</th>
+                            <th>Valor</th>
+                            <th>Status</th>
+                            <th>Totais Atualizados</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Totais Após Devolução -->
+    <div class="card mt-4" id="totaisCard" style="display: none;">
+        <div class="card-header">
+            <h5 class="card-title mb-0">Totais da Carga</h5>
+        </div>
+        <div class="card-body">
+            <!-- Totais dos Romaneios -->
+            <h6 class="mb-3">Totais dos Romaneios</h6>
+            <div class="row mb-4">
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-body">
+                            <h6 class="card-subtitle mb-2 text-muted">Total de Embalagens</h6>
+                            <p class="card-text" id="totalEmbalagensRomaneios">-</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-body">
+                            <h6 class="card-subtitle mb-2 text-muted">Peso Total</h6>
+                            <p class="card-text" id="pesoTotalRomaneios">-</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-body">
+                            <h6 class="card-subtitle mb-2 text-muted">Valor Total</h6>
+                            <p class="card-text" id="valorTotalRomaneios">-</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Totais das Devoluções -->
+            <h6 class="mb-3">Totais das Devoluções</h6>
+            <div class="row mb-4">
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-body">
+                            <h6 class="card-subtitle mb-2 text-muted">Embalagens Devolvidas</h6>
+                            <p class="card-text" id="totalEmbalagensDevolvidas">-</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-body">
+                            <h6 class="card-subtitle mb-2 text-muted">Peso Devolvido</h6>
+                            <p class="card-text" id="pesoTotalDevolvido">-</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-body">
+                            <h6 class="card-subtitle mb-2 text-muted">Valor Devolvido</h6>
+                            <p class="card-text" id="valorTotalDevolvido">-</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Totais Finais -->
+            <h6 class="mb-3">Totais Finais (Romaneios - Devoluções)</h6>
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="card bg-light">
+                        <div class="card-body">
+                            <h6 class="card-subtitle mb-2 text-muted">Total de Embalagens Final</h6>
+                            <p class="card-text" id="totalEmbalagensFinais">-</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card bg-light">
+                        <div class="card-body">
+                            <h6 class="card-subtitle mb-2 text-muted">Peso Total Final</h6>
+                            <p class="card-text" id="pesoTotalFinais">-</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card bg-light">
+                        <div class="card-body">
+                            <h6 class="card-subtitle mb-2 text-muted">Valor Total Final</h6>
+                            <p class="card-text" id="valorTotalFinais">-</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Confirmação -->
+    <div class="modal fade" id="confirmacaoModal" tabindex="-1" role="dialog">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Confirmar Aprovação</h5>
+                    <button type="button" class="close" data-dismiss="modal">
+                        <span>&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <p>Tem certeza que deseja aprovar esta devolução?</p>
+                    <p>Esta ação irá atualizar os valores do romaneio da carga.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="confirmarAprovacao">Confirmar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+$(document).ready(function() {
+    function formatarNumero(valor) {
+        return valor ? parseFloat(valor).toLocaleString('pt-BR') : '0';
+    }
+
+    function formatarMoeda(valor) {
+        return valor ? parseFloat(valor).toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'}) : 'R$ 0,00';
+    }
+
+    function carregarTotais(numero_carga) {
+        $.ajax({
+            url: `/devolucao/api/cargas/${numero_carga}/totais`,
+            method: 'GET',
+            success: function(totais) {
+                $('#totaisCard').show();
+                
+                // Atualizar totais dos romaneios
+                $('#totalEmbalagensRomaneios').text(formatarNumero(totais.totais_romaneios.embalagens));
+                $('#pesoTotalRomaneios').text(formatarNumero(totais.totais_romaneios.peso) + ' kg');
+                $('#valorTotalRomaneios').text(formatarMoeda(totais.totais_romaneios.valor));
+                
+                // Atualizar totais das devoluções
+                $('#totalEmbalagensDevolvidas').text(formatarNumero(totais.totais_devolucoes.embalagens));
+                $('#pesoTotalDevolvido').text(formatarNumero(totais.totais_devolucoes.peso) + ' kg');
+                $('#valorTotalDevolvido').text(formatarMoeda(totais.totais_devolucoes.valor));
+                
+                // Atualizar totais finais
+                $('#totalEmbalagensFinais').text(formatarNumero(totais.totais_finais.embalagens));
+                $('#pesoTotalFinais').text(formatarNumero(totais.totais_finais.peso) + ' kg');
+                $('#valorTotalFinais').text(formatarMoeda(totais.totais_finais.valor));
+            },
+            error: function(error) {
+                console.error('Erro ao carregar totais:', error);
+                $('#totaisCard').hide();
+            }
+        });
+    }
+
+    function carregarDevolucoes() {
+        $.get('/devolucao/api/devolucoes')
+            .done(function(devolucoes) {
+                var tbody = $('#devolucoesTable tbody');
+                tbody.empty();
+                
+                devolucoes.forEach(function(devolucao) {
+                    var row = $('<tr>');
+                    row.append($('<td>').text(devolucao.numero_carga));
+                    row.append($('<td>').text(devolucao.numero_nfe));
+                    row.append($('<td>').text(new Date(devolucao.data_devolucao).toLocaleDateString('pt-BR')));
+                    row.append($('<td>').text(devolucao.tipo_movimento));
+                    row.append($('<td>').text(formatarNumero(devolucao.qtd_embalagens)));
+                    row.append($('<td>').text(formatarNumero(devolucao.peso_devolvido) + ' kg'));
+                    row.append($('<td>').text(formatarMoeda(devolucao.valor_mercadoria)));
+                    
+                    var statusBadge = $('<span>').addClass('badge');
+                    if (devolucao.aprovado) {
+                        statusBadge.addClass('bg-success').text('Aprovado');
+                        carregarTotais(devolucao.numero_carga);
+                    } else {
+                        statusBadge.addClass('bg-warning').text('Pendente');
+                    }
+                    row.append($('<td>').append(statusBadge));
+                    
+                    // Adicionar coluna de totais atualizados
+                    var totaisCell = $('<td>');
+                    totaisCell.append($('<div>').text('Embalagens: ' + formatarNumero(devolucao.totais_atualizados.total_embalagens)));
+                    totaisCell.append($('<div>').text('Peso: ' + formatarNumero(devolucao.totais_atualizados.peso_total) + ' kg'));
+                    totaisCell.append($('<div>').text('Valor: ' + formatarMoeda(devolucao.totais_atualizados.valor_total)));
+                    row.append(totaisCell);
+                    
+                    var actions = $('<td>');
+                    if ('{{ current_user.role }}' === 'gerencia' && !devolucao.aprovado) {
+                        var approveBtn = $('<button>')
+                            .addClass('btn btn-sm btn-success mr-2')
+                            .text('Aprovar')
+                            .data('id', devolucao.id)
+                            .data('numero_carga', devolucao.numero_carga)
+                            .click(function() {
+                                $('#confirmacaoModal').modal('show');
+                                $('#confirmarAprovacao')
+                                    .data('id', $(this).data('id'))
+                                    .data('numero_carga', $(this).data('numero_carga'));
+                            });
+                        actions.append(approveBtn);
+                    }
+                    row.append(actions);
+                    
+                    tbody.append(row);
+                });
+            })
+            .fail(function(error) {
+                console.error('Erro ao carregar devoluções:', error);
+                alert('Erro ao carregar devoluções. Por favor, tente novamente.');
+            });
+    }
+
+    // Registrar nova devolução
+    $('#devolucaoForm').submit(function(e) {
+        e.preventDefault();
+        
+        var formData = {
+            numero_carga: $('#numero_carga').val(),
+            numero_nfe: $('#numero_nfe').val(),
+            tipo_movimento: $('#tipo_movimento').val(),
+            transportadora_id: $('#transportadora_id').val(),
+            peso_devolvido: $('#peso_devolvido').val(),
+            valor_mercadoria: $('#valor_mercadoria').val(),
+            qtd_embalagens: $('#qtd_embalagens').val(),
+            tipo_mercadoria: $('#tipo_mercadoria').val(),
+            observacoes: $('#observacoes').val()
+        };
+        
+        $.ajax({
+            url: '/devolucao/api/devolucoes',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(formData),
+            success: function(response) {
+                alert('Devolução registrada com sucesso!');
+                $('#devolucaoForm')[0].reset();
+                carregarDevolucoes();
+            },
+            error: function(xhr, status, error) {
+                console.error('Erro ao registrar devolução:', error);
+                alert('Erro ao registrar devolução. Por favor, tente novamente.');
+            }
+        });
+    });
+    
+    $('#confirmarAprovacao').click(function() {
+        var id = $(this).data('id');
+        var numero_carga = $(this).data('numero_carga');
+        
+        $.ajax({
+            url: `/devolucao/api/devolucoes/${id}/aprovar`,
+            method: 'POST',
+            success: function(response) {
+                $('#confirmacaoModal').modal('hide');
+                alert('Devolução aprovada com sucesso!');
+                carregarDevolucoes();
+                carregarTotais(numero_carga);
+            },
+            error: function(xhr, status, error) {
+                console.error('Erro ao aprovar devolução:', xhr.responseJSON || xhr.responseText);
+                let errorMsg = xhr.responseJSON ? xhr.responseJSON.error : 'Erro ao aprovar devolução. Por favor, tente novamente.';
+                $('#confirmacaoModal').modal('hide');
+                alert(errorMsg);
+            }
+        });
+    });
+
+    // Carregar devoluções ao iniciar
+    carregarDevolucoes();
+});
+</script>
+{% endblock %}

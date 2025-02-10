@@ -1,0 +1,103 @@
+{% extends "index.html" %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <h2>Logística - Carga #{{ carga.id }}</h2>
+    <form id="formLogistica" method="POST">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h4>Logística</h4>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label class="form-label">Descarga</label>
+                            <input type="text" class="form-control" name="descarga" value="{% if carga.logistica %}R$ {{ '%.2f'|format(carga.logistica.descarga|default(0))|replace('.', ',') }}{% else %}R$ 0,00{% endif %}" required>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label class="form-label">Data de Entrega</label>
+                            <input type="date" class="form-control" name="data_entrega" value="{{ carga.logistica.data_entrega.strftime('%Y-%m-%d') if carga.logistica and carga.logistica.data_entrega else '' }}" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">Observações</label>
+                            <textarea class="form-control" name="observacoes" rows="3">{{ carga.logistica.observacoes if carga.logistica else '' }}</textarea>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">Pendências</label>
+                            <textarea class="form-control" name="pendencias" rows="3">{{ carga.logistica.pendencias if carga.logistica else '' }}</textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mb-4">
+            <div class="col">
+                <button type="submit" class="btn btn-primary">Salvar Logística</button>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Prevenir envio do formulário ao pressionar Enter
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelector('form').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
+            e.preventDefault();
+        }
+    });
+
+    // Formatar campo de descarga como moeda
+    const campoDescarga = document.querySelector('input[name="descarga"]');
+    
+    function formatarMoeda(valor) {
+        if (!valor) return 'R$ 0,00';
+        
+        // Remove todos os caracteres não numéricos
+        valor = valor.replace(/\D/g, '');
+        
+        // Converte para número e divide por 100 para considerar os centavos
+        valor = (parseInt(valor) / 100).toFixed(2);
+        
+        // Formata o número para o padrão brasileiro
+        return new Intl.NumberFormat('pt-BR', {
+            style: 'currency',
+            currency: 'BRL'
+        }).format(valor);
+    }
+
+    function parseMoeda(valor) {
+        return parseFloat(valor.replace(/\D/g, '') || 0) / 100;
+    }
+
+    // Quando o campo ganhar foco, mostra apenas o número
+    campoDescarga.addEventListener('focus', function() {
+        const valor = parseMoeda(this.value);
+        this.value = valor.toFixed(2);
+    });
+
+    // Quando o campo perder foco, formata como moeda
+    campoDescarga.addEventListener('blur', function() {
+        const valor = parseFloat(this.value || 0);
+        this.value = formatarMoeda(valor.toFixed(2).replace('.', ''));
+    });
+
+    // Quando o valor for alterado, permite apenas números e pontos
+    campoDescarga.addEventListener('input', function() {
+        this.value = this.value.replace(/[^\d.]/g, '');
+    });
+});
+</script>
+{% endblock %}

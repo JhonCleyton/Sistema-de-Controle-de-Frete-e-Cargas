@@ -1,0 +1,529 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Lista de Usuários -->
+        <div class="col-md-3 border-end">
+            <div class="d-flex flex-column h-100">
+                <div class="p-3 border-bottom">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Chat</h5>
+                        <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#editProfileModal">
+                            <i class="fas fa-user-edit"></i> Editar Perfil
+                        </button>
+                    </div>
+                </div>
+                <ul class="nav nav-pills flex-column mb-auto overflow-auto" style="max-height: calc(100vh - 200px);">
+                    <li class="nav-item">
+                        <a href="javascript:void(0)" class="nav-link active" id="chat-grupo" onclick="window.chatApp.selecionarChat('grupo')">
+                            <i class="fas fa-users me-2"></i> Chat em Grupo
+                            <span class="badge bg-danger float-end mensagens-nao-lidas" style="display: none;">0</span>
+                        </a>
+                    </li>
+                    <li class="nav-item mt-3">
+                        <h6 class="px-3 mb-2 text-muted">Conversas Individuais</h6>
+                    </li>
+                    {% for usuario in usuarios %}
+                    <li class="nav-item">
+                        <a href="javascript:void(0)" class="nav-link" id="chat-{{ usuario.id }}" onclick="window.chatApp.selecionarChat({{ usuario.id }})">
+                            <i class="fas fa-user me-2"></i> <span class="usuario-nome" style="color: #000;">{{ usuario.username }}</span>
+                            <span class="badge bg-danger float-end mensagens-nao-lidas" style="display: none;">0</span>
+                        </a>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+
+        <!-- Área de Chat -->
+        <div class="col-md-9">
+            <div class="d-flex flex-column h-100">
+                <!-- Cabeçalho do Chat -->
+                <div class="p-3 border-bottom">
+                    <h5 class="mb-0" id="chat-titulo">Chat em Grupo</h5>
+                </div>
+
+                <!-- Mensagens -->
+                <div class="flex-grow-1 p-3 overflow-auto" id="mensagens" style="max-height: calc(100vh - 200px);">
+                    <!-- As mensagens serão inseridas aqui dinamicamente -->
+                </div>
+
+                <!-- Formulário de Envio -->
+                <div class="p-3 border-top">
+                    <form id="mensagem-form" onsubmit="window.chatApp.enviarMensagem(event)">
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="mensagem-input" placeholder="Digite sua mensagem...">
+                            <button class="btn btn-primary" type="submit">Enviar</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Edição de Perfil -->
+<div class="modal fade" id="editProfileModal" tabindex="-1" aria-labelledby="editProfileModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editProfileModalLabel">Editar Perfil</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="profileForm">
+                    <div class="mb-3">
+                        <label for="profileName" class="form-label">Nome de Exibição</label>
+                        <input type="text" class="form-control" id="profileName" name="display_name" value="{{ current_user.display_name or current_user.username }}">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Ícone do Perfil</label>
+                        <div class="d-flex flex-wrap gap-2 mb-2">
+                            <button type="button" class="btn btn-outline-primary" onclick="window.chatApp.selectIcon('user')">
+                                <i class="fas fa-user"></i>
+                            </button>
+                            <button type="button" class="btn btn-outline-primary" onclick="window.chatApp.selectIcon('user-tie')">
+                                <i class="fas fa-user-tie"></i>
+                            </button>
+                            <button type="button" class="btn btn-outline-primary" onclick="window.chatApp.selectIcon('user-ninja')">
+                                <i class="fas fa-user-ninja"></i>
+                            </button>
+                        </div>
+                        <input type="hidden" id="selectedIcon" name="icon" value="">
+                    </div>
+                    <div class="mb-3">
+                        <label for="profileImage" class="form-label">Ou faça upload de uma imagem</label>
+                        <input type="file" class="form-control" id="profileImage" name="profile_image" accept="image/*">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="window.chatApp.salvarPerfil()">Salvar</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Variáveis globais
+    let chatAtual = 'grupo';
+    let notificacoesInterval = null;
+    let mensagensInterval = null;
+    let editProfileModal = null;
+
+    // Funções auxiliares
+    function inicializarModal() {
+        editProfileModal = new bootstrap.Modal(document.getElementById('editProfileModal'));
+    }
+    
+    function tocarSomNotificacao() {
+        // Implementar som de notificação se necessário
+    }
+    
+    function mostrarNotificacaoNavegador(titulo, mensagem) {
+        if (Notification.permission === "granted") {
+            new Notification(titulo, { body: mensagem });
+        } else if (Notification.permission !== "denied") {
+            Notification.requestPermission().then(permission => {
+                if (permission === "granted") {
+                    new Notification(titulo, { body: mensagem });
+                }
+            });
+        }
+    }
+    
+    function buscarMensagens() {
+        const chatId = window.chatApp.chatAtual;
+        let url;
+        
+        if (chatId === 'grupo') {
+            url = '/api/mensagens?tipo=grupo';
+        } else {
+            const destinatarioId = parseInt(chatId);
+            if (isNaN(destinatarioId)) {
+                console.error('ID do destinatário inválido:', chatId);
+                return;
+            }
+            url = `/api/mensagens?tipo=individual&destinatario_id=${destinatarioId}`;
+        }
+            
+        window.api.get(url)
+            .then(mensagens => {
+                if (!Array.isArray(mensagens)) {
+                    console.error('Resposta inválida do servidor:', mensagens);
+                    return;
+                }
+                exibirMensagens(mensagens);
+                if (mensagens.length > 0) {
+                    marcarMensagensComoLidas(mensagens);
+                }
+            })
+            .catch(error => {
+                console.error('Erro ao buscar mensagens:', error);
+                alert('Erro ao buscar mensagens. Por favor, tente novamente.');
+            });
+    }
+    
+    function exibirMensagens(mensagens) {
+        const container = document.getElementById('mensagens');
+        if (!container) return;
+        
+        container.innerHTML = '';
+        let lastDate = null;
+        
+        mensagens.forEach(msg => {
+            // Verificar se precisamos adicionar um divisor de data
+            const msgDate = new Date(msg.data_envio);
+            const dataFormatada = msgDate.toLocaleDateString('pt-BR');
+            
+            if (lastDate !== dataFormatada) {
+                const dataDivisor = document.createElement('div');
+                dataDivisor.className = 'text-center my-3';
+                dataDivisor.innerHTML = `<small class="text-muted">${dataFormatada}</small>`;
+                container.appendChild(dataDivisor);
+                lastDate = dataFormatada;
+            }
+            
+            const isMyMessage = msg.remetente_id === {{ current_user.id }};
+            const msgElement = document.createElement('div');
+            msgElement.className = `d-flex mb-3 ${isMyMessage ? 'justify-content-end' : 'justify-content-start'}`;
+            msgElement.setAttribute('data-mensagem-id', msg.id);
+            
+            const hora = new Date(msg.data_envio).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            
+            msgElement.innerHTML = `
+                <div class="message ${isMyMessage ? 'message-sent' : 'message-received'} ${!msg.lida ? 'nao-lida' : ''}" style="max-width: 70%;">
+                    ${!isMyMessage ? `<small class="text-muted d-block mb-1">${msg.remetente_nome}</small>` : ''}
+                    <div class="message-content p-2 rounded">
+                        ${msg.conteudo}
+                    </div>
+                    <small class="text-muted d-block text-${isMyMessage ? 'end' : 'start'} mt-1">
+                        ${hora}
+                        ${isMyMessage ? (msg.lida ? '<i class="fas fa-check-double text-primary"></i>' : '<i class="fas fa-check"></i>') : ''}
+                    </small>
+                </div>
+            `;
+            
+            container.appendChild(msgElement);
+        });
+        
+        container.scrollTop = container.scrollHeight;
+    }
+    
+    function marcarMensagensComoLidas(mensagens) {
+        // Filtrar apenas mensagens não lidas que não são do usuário atual
+        const mensagensNaoLidas = mensagens.filter(msg => 
+            !msg.lida && msg.remetente_id !== {{ current_user.id }}
+        );
+        
+        if (mensagensNaoLidas.length === 0) return;
+        
+        const ids = mensagensNaoLidas.map(msg => msg.id);
+        
+        window.api.post('/api/mensagens/lidas', { ids })
+            .then(() => {
+                // Atualizar o estado local das mensagens
+                mensagensNaoLidas.forEach(msg => msg.lida = true);
+                
+                // Atualizar a exibição das mensagens
+                const elementos = document.querySelectorAll('.nao-lida');
+                elementos.forEach(el => el.classList.remove('nao-lida'));
+                
+                // Atualizar notificações
+                atualizarNotificacoes();
+            })
+            .catch(error => console.error('Erro ao marcar mensagens como lidas:', error));
+    }
+    
+    function atualizarNotificacoes() {
+        window.api.get('/api/mensagens/nao-lidas')
+            .then(data => {
+                // Atualizar badges de notificação
+                const badges = document.querySelectorAll('.mensagens-nao-lidas');
+                badges.forEach(badge => {
+                    badge.style.display = 'none';
+                    badge.textContent = '0';
+                });
+
+                // Para cada chat com mensagens não lidas
+                Object.entries(data).forEach(([chatId, count]) => {
+                    const elementId = chatId === 'grupo' ? 'chat-grupo' : `chat-${chatId}`;
+                    const badge = document.querySelector(`#${elementId} .mensagens-nao-lidas`);
+                    
+                    if (badge && count > 0) {
+                        badge.style.display = 'inline';
+                        badge.textContent = count;
+
+                        // Se não for o chat atual, mostrar notificação
+                        if (chatId !== window.chatApp.chatAtual) {
+                            const chatLink = document.querySelector(`#${elementId}`);
+                            if (chatLink) {
+                                let nomeUsuario;
+                                if (chatId === 'grupo') {
+                                    nomeUsuario = 'Chat em Grupo';
+                                } else {
+                                    const nomeElement = chatLink.querySelector('.usuario-nome');
+                                    nomeUsuario = nomeElement ? nomeElement.textContent : 'Usuário';
+                                }
+                                
+                                mostrarNotificacaoNavegador('Nova mensagem', `Você tem ${count} mensagem(ns) não lida(s) ${chatId === 'grupo' ? 'no' : 'de'} ${nomeUsuario}`);
+                                tocarSomNotificacao();
+                            }
+                        }
+                    }
+                });
+            })
+            .catch(error => console.error('Erro ao atualizar notificações:', error));
+    }
+    
+    function atualizarPerfilUsuario() {
+        const userLinks = document.querySelectorAll('.nav-link');
+        userLinks.forEach(link => {
+            const userId = link.id.replace('chat-', '');
+            // Verifica se é um ID numérico válido
+            if (userId !== 'grupo' && !isNaN(userId)) {
+                window.api.get(`/api/usuario/${userId}/perfil`)
+                    .then(data => {
+                        if (data.icon) {
+                            const iconContainer = link.querySelector('i.fas.fa-user');
+                            if (iconContainer) {
+                                iconContainer.outerHTML = `<img src="${data.icon}" class="profile-icon" alt="Profile">`;
+                            }
+                        }
+                        const nomeElement = link.querySelector('.usuario-nome');
+                        if (nomeElement && data.display_name) {
+                            nomeElement.textContent = data.display_name;
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Erro ao atualizar perfil:', error);
+                    });
+            }
+        });
+    }
+
+    function enviarMensagem(event) {
+        event.preventDefault();
+        const input = document.getElementById('mensagem-input');
+        const mensagem = input.value.trim();
+        const button = document.querySelector('button[type="submit"]');
+        
+        if (!mensagem) return;
+        
+        // Desabilitar input e botão
+        input.disabled = true;
+        button.disabled = true;
+        
+        const chatId = window.chatApp.chatAtual;
+        const data = {
+            conteudo: mensagem,
+            tipo: chatId === 'grupo' ? 'grupo' : 'individual'
+        };
+        
+        if (chatId !== 'grupo') {
+            const destinatarioId = parseInt(chatId);
+            if (isNaN(destinatarioId)) {
+                console.error('ID do destinatário inválido:', chatId);
+                alert('Erro ao enviar mensagem: destinatário inválido');
+                input.disabled = false;
+                button.disabled = false;
+                return;
+            }
+            data.destinatario_id = destinatarioId;
+        }
+        
+        window.api.post('/api/mensagens', data)
+            .then(() => {
+                input.value = '';
+                buscarMensagens();
+            })
+            .catch(error => {
+                console.error('Erro ao enviar mensagem:', error);
+                alert('Erro ao enviar mensagem. Por favor, tente novamente.');
+            })
+            .finally(() => {
+                // Reabilitar input e botão
+                input.disabled = false;
+                button.disabled = false;
+                input.focus();
+            });
+    }
+
+    function salvarPerfil() {
+        const formData = new FormData(document.getElementById('profileForm'));
+        
+        // Não podemos usar window.api.post aqui porque estamos enviando FormData
+        fetch('/api/usuario/perfil', {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+            },
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Perfil atualizado com sucesso!');
+                window.location.reload();
+            } else {
+                alert('Erro ao atualizar perfil: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Erro:', error);
+            alert('Erro ao atualizar perfil');
+        });
+    }
+
+    // API pública
+    window.chatApp = {
+        chatAtual: 'grupo',
+        
+        selecionarChat: function(id) {
+            // Converter id para string se for número
+            id = typeof id === 'number' ? id.toString() : id;
+            
+            // Remover classe active de todos os links
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('active');
+            });
+            
+            // Adicionar classe active ao link selecionado
+            const elementId = id === 'grupo' ? 'chat-grupo' : `chat-${id}`;
+            const chatLink = document.querySelector(`#${elementId}`);
+            if (chatLink) {
+                chatLink.classList.add('active');
+            }
+            
+            // Atualizar título do chat
+            const titulo = document.getElementById('chat-titulo');
+            if (titulo) {
+                if (id === 'grupo') {
+                    titulo.textContent = 'Chat em Grupo';
+                } else {
+                    const nomeElement = chatLink?.querySelector('.usuario-nome');
+                    titulo.textContent = nomeElement ? `Chat com ${nomeElement.textContent}` : 'Chat Individual';
+                }
+            }
+            
+            // Atualizar chat atual
+            this.chatAtual = id;
+            
+            // Limpar e buscar mensagens
+            const mensagensContainer = document.getElementById('mensagens');
+            if (mensagensContainer) {
+                mensagensContainer.innerHTML = '';
+            }
+            buscarMensagens();
+        },
+        
+        selectIcon: function(iconName) {
+            document.getElementById('selectedIcon').value = iconName;
+        },
+        
+        enviarMensagem: enviarMensagem,
+        salvarPerfil: salvarPerfil,
+        inicializar: function() {
+            // Inicializar modal
+            inicializarModal();
+            
+            // Atualizar perfis dos usuários
+            atualizarPerfilUsuario();
+            
+            // Buscar mensagens iniciais
+            buscarMensagens();
+            
+            // Configurar intervalos de atualização
+            notificacoesInterval = setInterval(atualizarNotificacoes, 10000);
+            mensagensInterval = setInterval(buscarMensagens, 5000);
+        },
+        limparIntervalos: function() {
+            clearInterval(notificacoesInterval);
+            clearInterval(mensagensInterval);
+        }
+    };
+
+    // Inicializar quando o documento estiver pronto
+    document.addEventListener('DOMContentLoaded', window.chatApp.inicializar);
+
+    // Limpar intervalos quando a página for fechada
+    window.addEventListener('beforeunload', window.chatApp.limparIntervalos);
+</script>
+
+<style>
+    .chat-message {
+        margin-bottom: 1rem;
+        max-width: 70%;
+    }
+    
+    .chat-message.sent {
+        margin-left: auto;
+    }
+    
+    .chat-message.received {
+        margin-right: auto;
+    }
+    
+    .message-content {
+        background-color: #f8f9fa;
+        border-radius: 0.5rem;
+        padding: 0.75rem;
+    }
+    
+    .chat-message.sent .message-content {
+        background-color: #007bff;
+        color: white;
+    }
+    
+    .chat-message.sent .message-content .text-muted {
+        color: rgba(255, 255, 255, 0.75) !important;
+    }
+    
+    .chat-message.nao-lida .message-content {
+        border: 2px solid #dc3545;
+    }
+    
+    .profile-icon {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        margin-right: 0.5rem;
+    }
+    
+    .message {
+        margin-bottom: 1rem;
+        max-width: 70%;
+    }
+    
+    .message-sent {
+        margin-left: auto;
+    }
+    
+    .message-received {
+        margin-right: auto;
+    }
+    
+    .message-content {
+        background-color: #f8f9fa;
+        border-radius: 0.5rem;
+        padding: 0.75rem;
+    }
+    
+    .message-sent .message-content {
+        background-color: #007bff;
+        color: white;
+    }
+    
+    .message-sent .message-content .text-muted {
+        color: rgba(255, 255, 255, 0.75) !important;
+    }
+    
+    .nao-lida .message-content {
+        border: 2px solid #dc3545;
+    }
+</style>
+{% endblock %}

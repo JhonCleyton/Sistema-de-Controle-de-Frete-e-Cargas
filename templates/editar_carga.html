@@ -1,0 +1,711 @@
+{% extends "index.html" %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <h2>Visualizar/Editar Carga</h2>
+    <form id="formCarga" method="POST" action="{{ url_for('editar_carga', carga_id=carga.id) }}">
+        <!-- DADOS DA CARGA -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h4>Dados da Carga</h4>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label for="carga" class="form-label">Carga</label>
+                            <input type="text" class="form-control" id="carga" name="carga" value="{{ carga.carga }}" required>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label for="status" class="form-label">Status</label>
+                            <select class="form-select" id="status" name="status" required>
+                                <option value="Em Transito" {% if carga.status == 'Em Transito' %}selected{% endif %}>Em Trânsito</option>
+                                <option value="Fechado" {% if carga.status == 'Fechado' %}selected{% endif %}>Fechado</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label for="rota" class="form-label">Rota</label>
+                            <div id="rotas-container">
+                                {% for rota in carga.rota.split(', ') %}
+                                <div class="input-group mb-2">
+                                    <select class="form-select rota-select" name="rota[]">
+                                        <option value="">Selecione uma cidade</option>
+                                        {% for cidade in cidades %}
+                                        <option value="{{ cidade.codigo }}" {% if cidade.codigo == rota %}selected{% endif %}>{{ cidade.nome }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    {% if loop.index > 1 %}
+                                    <button type="button" class="btn btn-danger" onclick="removerRota(this)">
+                                        <i class="fas fa-minus"></i>
+                                    </button>
+                                    {% else %}
+                                    <button type="button" class="btn btn-primary" onclick="adicionarRota()">
+                                        <i class="fas fa-plus"></i>
+                                    </button>
+                                    {% endif %}
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label for="nfs_cte" class="form-label">NFS/CTE</label>
+                            <input type="text" class="form-control" id="nfs_cte" name="nfs_cte" value="{{ carga.nfs_cte }}">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label for="nf" class="form-label">NF</label>
+                            <input type="text" class="form-control" id="nf" name="nf" value="{{ carga.nf }}">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label for="transportadora" class="form-label">Transportadora</label>
+                            <select class="form-select" id="transportadora" name="transportadora">
+                                <option value="">Selecione uma transportadora</option>
+                                {% for transportadora in transportadoras %}
+                                <option value="{{ transportadora.id }}" {% if carga.transportadora and carga.transportadora.id == transportadora.id %}selected{% endif %}>
+                                    {{ transportadora.nome }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label for="veiculo" class="form-label">Veículo</label>
+                            <select class="form-select" id="veiculo" name="veiculo">
+                                <option value="">Selecione um veículo</option>
+                                {% if carga.transportadora %}
+                                    {% for veiculo in carga.transportadora.veiculos %}
+                                    <option value="{{ veiculo.id }}" {% if carga.veiculo and carga.veiculo.id == veiculo.id %}selected{% endif %}>
+                                        {{ veiculo.placa }}
+                                    </option>
+                                    {% endfor %}
+                                {% endif %}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label for="motorista" class="form-label">Motorista</label>
+                            <input type="text" class="form-control" id="motorista" name="motorista" value="{{ carga.motorista }}">
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="mb-3">
+                            <label for="data_saida" class="form-label">Data Saída</label>
+                            <input type="date" class="form-control" id="data_saida" name="data_saida" value="{{ carga.data_saida|string if carga.data_saida }}">
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="mb-3">
+                            <label for="hora_saida" class="form-label">Hora Saída</label>
+                            <input type="time" class="form-control" id="hora_saida" name="hora_saida" value="{{ carga.hora_saida.strftime('%H:%M') if carga.hora_saida else '' }}">
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="mb-3">
+                            <label for="data_chegada" class="form-label">Data Chegada</label>
+                            <input type="date" class="form-control" id="data_chegada" name="data_chegada" value="{{ carga.data_chegada|string if carga.data_chegada }}">
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="mb-3">
+                            <label for="hora_chegada" class="form-label">Hora Chegada</label>
+                            <input type="time" class="form-control" id="hora_chegada" name="hora_chegada" value="{{ carga.hora_chegada.strftime('%H:%M') if carga.hora_chegada else '' }}">
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label for="km_inicial" class="form-label">KM Inicial</label>
+                            <input type="number" step="0.1" class="form-control" id="km_inicial" name="km_inicial" value="{{ carga.km_inicial }}" onchange="calcularKmTotal()">
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label for="km_final" class="form-label">KM Final</label>
+                            <input type="number" step="0.1" class="form-control" id="km_final" name="km_final" value="{{ carga.km_final }}" onchange="calcularKmTotal()">
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label for="km_total" class="form-label">KM Total</label>
+                            <input type="number" step="0.1" class="form-control" id="km_total" name="km_total" value="{{ carga.km_total }}" readonly>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ROMANEIO -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h4>Romaneio</h4>
+                <button type="button" class="btn btn-primary btn-sm" onclick="adicionarRomaneio()">
+                    <i class="fas fa-plus"></i> Adicionar Item
+                </button>
+            </div>
+            <div class="card-body">
+                <div id="romaneios">
+                    {% for romaneio in carga.romaneios %}
+                    <div class="romaneio-item mb-3 border p-3">
+                        <div class="row">
+                            <div class="col-md-2">
+                                <div class="mb-3">
+                                    <label class="form-label">Nota</label>
+                                    <input type="text" class="form-control nota" name="nota[]" value="{{ romaneio.nota }}">
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label class="form-label">Cliente</label>
+                                    <div class="input-group">
+                                        <select class="form-select cliente" name="cliente[]">
+                                            <option value="">Selecione um cliente</option>
+                                            {% for cliente in clientes %}
+                                            <option value="{{ cliente.id }}" {% if cliente.id == romaneio.cliente_id %}selected{% endif %}>{{ cliente.nome }}</option>
+                                            {% endfor %}
+                                        </select>
+                                        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#novoClienteModal">
+                                            <i class="fas fa-plus"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="mb-3">
+                                    <label class="form-label">Condições Pagamento</label>
+                                    <input type="text" class="form-control" name="condicoes_pagamento[]" value="{{ romaneio.condicoes_pagamento }}">
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="mb-3">
+                                    <label class="form-label">Forma Pagamento</label>
+                                    <input type="text" class="form-control" name="forma_pagamento[]" value="{{ romaneio.forma_pagamento }}">
+                                </div>
+                            </div>
+                            <div class="col-md-1">
+                                <div class="mb-3">
+                                    <label class="form-label">Qtd. Embalagens</label>
+                                    <input type="number" class="form-control qtd-embalagens" name="qtd_embalagens[]" value="{{ romaneio.qtd_embalagens }}" onchange="calcularTotais()">
+                                </div>
+                            </div>
+                            <div class="col-md-1">
+                                <div class="mb-3">
+                                    <label class="form-label">Peso Bruto</label>
+                                    <input type="number" step="0.01" class="form-control peso-bruto" name="peso_bruto[]" value="{{ romaneio.peso_bruto }}" onchange="calcularTotais()">
+                                </div>
+                            </div>
+                            <div class="col-md-1">
+                                <div class="mb-3">
+                                    <label class="form-label">Valor Líquido</label>
+                                    <input type="number" step="0.01" class="form-control valor-liquido" name="valor_liquido[]" value="{{ romaneio.valor_liquido }}" onchange="calcularTotais()">
+                                </div>
+                            </div>
+                            {% if not loop.first %}
+                            <div class="col-md-1 d-flex align-items-end">
+                                <button type="button" class="btn btn-danger" onclick="this.closest('.romaneio-item').remove(); calcularTotais();">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% if not carga.romaneios %}
+                    <!-- Romaneio inicial vazio -->
+                    <div class="romaneio-item mb-3 border p-3">
+                        <div class="row">
+                            <div class="col-md-2">
+                                <div class="mb-3">
+                                    <label class="form-label">Nota</label>
+                                    <input type="text" class="form-control nota" name="nota[]">
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label class="form-label">Cliente</label>
+                                    <div class="input-group">
+                                        <select class="form-select cliente" name="cliente[]">
+                                            <option value="">Selecione um cliente</option>
+                                            {% for cliente in clientes %}
+                                            <option value="{{ cliente.id }}">{{ cliente.nome }}</option>
+                                            {% endfor %}
+                                        </select>
+                                        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#novoClienteModal">
+                                            <i class="fas fa-plus"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="mb-3">
+                                    <label class="form-label">Condições Pagamento</label>
+                                    <input type="text" class="form-control" name="condicoes_pagamento[]">
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="mb-3">
+                                    <label class="form-label">Forma Pagamento</label>
+                                    <input type="text" class="form-control" name="forma_pagamento[]">
+                                </div>
+                            </div>
+                            <div class="col-md-1">
+                                <div class="mb-3">
+                                    <label class="form-label">Qtd. Embalagens</label>
+                                    <input type="number" class="form-control qtd-embalagens" name="qtd_embalagens[]" onchange="calcularTotais()">
+                                </div>
+                            </div>
+                            <div class="col-md-1">
+                                <div class="mb-3">
+                                    <label class="form-label">Peso Bruto</label>
+                                    <input type="number" step="0.01" class="form-control peso-bruto" name="peso_bruto[]" onchange="calcularTotais()">
+                                </div>
+                            </div>
+                            <div class="col-md-1">
+                                <div class="mb-3">
+                                    <label class="form-label">Valor Líquido</label>
+                                    <input type="number" step="0.01" class="form-control valor-liquido" name="valor_liquido[]" onchange="calcularTotais()">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="row mt-3">
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label class="form-label">Total Embalagens</label>
+                            <input type="number" class="form-control" id="total_embalagens" readonly>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label class="form-label">Total Peso Bruto</label>
+                            <input type="number" step="0.01" class="form-control" id="total_peso_bruto" readonly>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label class="form-label">Total Valor Líquido</label>
+                            <input type="number" step="0.01" class="form-control" id="total_valor_liquido" readonly>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- RESUMO POR TIPO DE MOVIMENTO -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h4>Resumo por Tipo de Movimento</h4>
+                <button type="button" class="btn btn-primary btn-sm" onclick="adicionarMovimento()">
+                    <i class="fas fa-plus"></i> Adicionar Movimento
+                </button>
+            </div>
+            <div class="card-body">
+                <div id="movimentos">
+                    {% for movimento in carga.resumo_movimentos %}
+                    <div class="movimento-item mb-3 border p-3">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label class="form-label">Código do Movimento</label>
+                                    <select class="form-select codigo-movimento" name="codigo_movimento[]" onchange="atualizarTipoMovimento(this)">
+                                        <option value="">Selecione um código</option>
+                                        {% for codigo in codigos_movimento %}
+                                        <option value="{{ codigo }}" {% if codigo == movimento.codigo %}selected{% endif %}>{{ codigo }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-8">
+                                <div class="mb-3">
+                                    <label class="form-label">Tipo de Movimento</label>
+                                    <input type="text" class="form-control tipo-movimento" name="tipo_movimento[]" value="{{ movimento.tipo_movimento }}" readonly>
+                                </div>
+                            </div>
+                            {% if not loop.first %}
+                            <div class="col-md-1 d-flex align-items-end">
+                                <button type="button" class="btn btn-danger" onclick="this.closest('.movimento-item').remove();">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% if not carga.resumo_movimentos %}
+                    <!-- Movimento inicial vazio -->
+                    <div class="movimento-item mb-3 border p-3">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label class="form-label">Código do Movimento</label>
+                                    <select class="form-select codigo-movimento" name="codigo_movimento[]" onchange="atualizarTipoMovimento(this)">
+                                        <option value="">Selecione um código</option>
+                                        {% for codigo in codigos_movimento %}
+                                        <option value="{{ codigo }}">{{ codigo }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-8">
+                                <div class="mb-3">
+                                    <label class="form-label">Tipo de Movimento</label>
+                                    <input type="text" class="form-control tipo-movimento" name="tipo_movimento[]" readonly>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- CONTROLE DE FRETE -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h4>Controle de Frete</h4>
+            </div>
+            <div class="card-body">
+                {% if carga.controle_frete %}
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label for="tipo_frete" class="form-label">Tipo de Frete</label>
+                            <input type="text" class="form-control" name="tipo_frete" value="{{ carga.controle_frete.tipo_frete }}">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label for="origem" class="form-label">Origem</label>
+                            <input type="text" class="form-control" name="origem" value="{{ carga.controle_frete.origem }}">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label for="km_inicial_frete" class="form-label">KM Inicial</label>
+                            <input type="number" step="0.1" class="form-control" name="km_inicial_frete" value="{{ carga.controle_frete.km_inicial }}" onchange="calcularKmRodados()">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label for="km_final_frete" class="form-label">KM Final</label>
+                            <input type="number" step="0.1" class="form-control" name="km_final_frete" value="{{ carga.controle_frete.km_final }}" onchange="calcularKmRodados()">
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label for="km_rodados" class="form-label">KM Rodados</label>
+                            <input type="number" step="0.1" class="form-control" name="km_rodados" value="{{ carga.controle_frete.km_rodados }}" readonly>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label for="valor_frete" class="form-label">Valor do Frete</label>
+                            <input type="number" step="0.01" class="form-control" name="valor_frete" value="{{ carga.controle_frete.valor_frete }}" onchange="calcularPrecos()">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label for="abastecimento" class="form-label">Abastecimento</label>
+                            <input type="number" step="0.01" class="form-control" name="abastecimento" value="{{ carga.controle_frete.abastecimento }}" onchange="calcularPrecos()">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label for="impostos" class="form-label">Impostos</label>
+                            <input type="number" step="0.01" class="form-control" name="impostos" value="{{ carga.controle_frete.impostos }}" onchange="calcularPrecos()">
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label for="adiantamento" class="form-label">Adiantamento</label>
+                            <input type="number" step="0.01" class="form-control" name="adiantamento" value="{{ carga.controle_frete.adiantamento }}" onchange="calcularPrecos()">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label for="entrega_extra" class="form-label">Entrega Extra</label>
+                            <input type="number" step="0.01" class="form-control" name="entrega_extra" value="{{ carga.controle_frete.entrega_extra }}" onchange="calcularPrecos()">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label for="outros" class="form-label">Outros</label>
+                            <input type="number" step="0.01" class="form-control" name="outros" value="{{ carga.controle_frete.outros }}" onchange="calcularPrecos()">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label for="saldo_pagar" class="form-label">Saldo a Pagar</label>
+                            <input type="number" step="0.01" class="form-control" id="saldo_pagar" readonly>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="row mb-4">
+            <div class="col">
+                <button type="submit" class="btn btn-primary">Salvar Alterações</button>
+                <a href="{{ url_for('lista_cargas') }}" class="btn btn-secondary">Voltar</a>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- Modal Novo Cliente -->
+<div class="modal fade" id="novoClienteModal" tabindex="-1" aria-labelledby="novoClienteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="novoClienteModalLabel">Novo Cliente</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formNovoCliente">
+                    <div class="mb-3">
+                        <label for="codigoCliente" class="form-label">Código</label>
+                        <input type="text" class="form-control" id="codigoCliente" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="nomeCliente" class="form-label">Nome</label>
+                        <input type="text" class="form-control" id="nomeCliente" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="salvarNovoCliente()">Salvar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Prevenir envio do formulário ao pressionar Enter
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelector('form').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
+                e.preventDefault();
+            }
+        });
+    });
+
+    // Função para atualizar lista de veículos quando a transportadora é alterada
+    document.getElementById('transportadora').addEventListener('change', function() {
+        const transportadoraId = this.value;
+        const veiculoSelect = document.getElementById('veiculo');
+        
+        // Limpar lista atual de veículos
+        veiculoSelect.innerHTML = '<option value="">Selecione um veículo</option>';
+        
+        if (transportadoraId) {
+            // Buscar veículos da transportadora selecionada
+            fetch(`/transportadora/api/transportadoras/${transportadoraId}/veiculos`)
+                .then(response => response.json())
+                .then(veiculos => {
+                    veiculos.forEach(veiculo => {
+                        const option = document.createElement('option');
+                        option.value = veiculo.id;
+                        option.textContent = veiculo.placa;
+                        veiculoSelect.appendChild(option);
+                    });
+                });
+        }
+    });
+
+    function adicionarRomaneio() {
+        const romaneiosDiv = document.getElementById('romaneios');
+        const novoRomaneio = document.createElement('div');
+        novoRomaneio.className = 'romaneio-item mb-3 border p-3';
+        novoRomaneio.innerHTML = `
+            <div class="row">
+                <div class="col-md-2">
+                    <div class="mb-3">
+                        <label class="form-label">Nota</label>
+                        <input type="text" class="form-control nota" name="nota[]">
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="mb-3">
+                        <label class="form-label">Cliente</label>
+                        <div class="input-group">
+                            <select class="form-select cliente" name="cliente[]">
+                                <option value="">Selecione um cliente</option>
+                                {% for cliente in clientes %}
+                                <option value="{{ cliente.id }}">{{ cliente.nome }}</option>
+                                {% endfor %}
+                            </select>
+                            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#novoClienteModal">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="mb-3">
+                        <label class="form-label">Condições Pagamento</label>
+                        <input type="text" class="form-control" name="condicoes_pagamento[]">
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="mb-3">
+                        <label class="form-label">Forma Pagamento</label>
+                        <input type="text" class="form-control" name="forma_pagamento[]">
+                    </div>
+                </div>
+                <div class="col-md-1">
+                    <div class="mb-3">
+                        <label class="form-label">Qtd. Embalagens</label>
+                        <input type="number" class="form-control qtd-embalagens" name="qtd_embalagens[]" onchange="calcularTotais()">
+                    </div>
+                </div>
+                <div class="col-md-1">
+                    <div class="mb-3">
+                        <label class="form-label">Peso Bruto</label>
+                        <input type="number" step="0.01" class="form-control peso-bruto" name="peso_bruto[]" onchange="calcularTotais()">
+                    </div>
+                </div>
+                <div class="col-md-1">
+                    <div class="mb-3">
+                        <label class="form-label">Valor Líquido</label>
+                        <input type="number" step="0.01" class="form-control valor-liquido" name="valor_liquido[]" onchange="calcularTotais()">
+                    </div>
+                </div>
+                <div class="col-md-1 d-flex align-items-end">
+                    <button type="button" class="btn btn-danger" onclick="this.closest('.romaneio-item').remove(); calcularTotais();">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+        romaneiosDiv.appendChild(novoRomaneio);
+    }
+
+    function adicionarMovimento() {
+        const movimentosDiv = document.getElementById('movimentos');
+        const novoMovimento = document.createElement('div');
+        novoMovimento.className = 'movimento-item mb-3 border p-3';
+        novoMovimento.innerHTML = `
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="mb-3">
+                        <label class="form-label">Código do Movimento</label>
+                        <select class="form-select codigo-movimento" name="codigo_movimento[]" onchange="atualizarTipoMovimento(this)">
+                            <option value="">Selecione um código</option>
+                            {% for codigo in codigos_movimento %}
+                            <option value="{{ codigo }}">{{ codigo }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-8">
+                    <div class="mb-3">
+                        <label class="form-label">Tipo de Movimento</label>
+                        <input type="text" class="form-control tipo-movimento" name="tipo_movimento[]" readonly>
+                    </div>
+                </div>
+                <div class="col-md-1 d-flex align-items-end">
+                    <button type="button" class="btn btn-danger" onclick="this.closest('.movimento-item').remove();">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+        movimentosDiv.appendChild(novoMovimento);
+    }
+
+    function calcularTotais() {
+        let totalEmbalagens = 0;
+        let totalPesoBruto = 0;
+        let totalValorLiquido = 0;
+
+        document.querySelectorAll('.qtd-embalagens').forEach(input => {
+            totalEmbalagens += parseInt(input.value) || 0;
+        });
+
+        document.querySelectorAll('.peso-bruto').forEach(input => {
+            totalPesoBruto += parseFloat(input.value) || 0;
+        });
+
+        document.querySelectorAll('.valor-liquido').forEach(input => {
+            totalValorLiquido += parseFloat(input.value) || 0;
+        });
+
+        document.getElementById('total_embalagens').value = totalEmbalagens;
+        document.getElementById('total_peso_bruto').value = totalPesoBruto.toFixed(2);
+        document.getElementById('total_valor_liquido').value = totalValorLiquido.toFixed(2);
+    }
+
+    function calcularKmRodados() {
+        const kmInicial = parseFloat(document.querySelector('[name="km_inicial_frete"]').value) || 0;
+        const kmFinal = parseFloat(document.querySelector('[name="km_final_frete"]').value) || 0;
+        const kmRodados = kmFinal - kmInicial;
+        document.querySelector('[name="km_rodados"]').value = kmRodados.toFixed(1);
+        calcularPrecos();
+    }
+
+    function calcularPrecos() {
+        const kmRodados = parseFloat(document.querySelector('[name="km_rodados"]').value) || 0;
+        const valorFrete = parseFloat(document.querySelector('[name="valor_frete"]').value) || 0;
+        const abastecimento = parseFloat(document.querySelector('[name="abastecimento"]').value) || 0;
+        const impostos = parseFloat(document.querySelector('[name="impostos"]').value) || 0;
+        const adiantamento = parseFloat(document.querySelector('[name="adiantamento"]').value) || 0;
+        const entregaExtra = parseFloat(document.querySelector('[name="entrega_extra"]').value) || 0;
+        const outros = parseFloat(document.querySelector('[name="outros"]').value) || 0;
+        const totalPesoBruto = parseFloat(document.getElementById('total_peso_bruto').value) || 0;
+
+        const precoKm = kmRodados > 0 ? (valorFrete / kmRodados) : 0;
+        const precoKg = totalPesoBruto > 0 ? (valorFrete / totalPesoBruto) : 0;
+        const saldoPagar = valorFrete - abastecimento - impostos - adiantamento - entregaExtra - outros;
+
+        document.querySelector('[name="preco_km"]').value = precoKm.toFixed(2);
+        document.querySelector('[name="preco_kg"]').value = precoKg.toFixed(2);
+        document.getElementById('saldo_pagar').value = saldoPagar.toFixed(2);
+    }
+
+    function atualizarTipoMovimento(select) {
+        const tipoMovimentoInput = select.closest('.row').querySelector('.tipo-movimento');
+        const codigoSelecionado = select.value;
+        const tiposMovimento = {
+            'TROCA': 'Troca de Mercadoria',
+            'BONIF': 'Bonificação',
+            'VENDA': 'Venda',
+            'DEVOL': 'Devolução',
+            'CONSG': 'Consignação'
+        };
+        tipoMovimentoInput.value = tiposMovimento[codigoSelecionado] || '';
+    }
+
+    // Inicializar cálculos
+    document.addEventListener('DOMContentLoaded', function() {
+        calcularTotais();
+        calcularKmRodados();
+        calcularPrecos();
+    });
+</script>
+{% endblock %}

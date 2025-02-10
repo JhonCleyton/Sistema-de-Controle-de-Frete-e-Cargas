@@ -1,0 +1,593 @@
+{% extends "index.html" %}
+
+{% block styles %}
+<meta name="csrf-token" content="{{ csrf_token() }}">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+    .card-3d {
+        background: linear-gradient(135deg, #ffffff 0%, #f0f0f0 100%);
+        border-radius: 15px;
+        box-shadow: 
+            0 10px 20px rgba(0,0,0,0.12),
+            0 4px 8px rgba(0,0,0,0.06),
+            inset 0 -5px 12px rgba(0,0,0,0.05);
+        transition: all 0.3s ease;
+        transform: perspective(1000px) rotateX(0deg);
+        margin-bottom: 20px;
+    }
+    
+    .card-3d:hover {
+        transform: perspective(1000px) rotateX(5deg) translateY(-5px);
+        box-shadow: 
+            0 15px 30px rgba(0,0,0,0.15),
+            0 8px 12px rgba(0,0,0,0.08),
+            inset 0 -5px 12px rgba(0,0,0,0.05);
+    }
+    
+    .card-header {
+        background: linear-gradient(135deg, #4a90e2 0%, #357abd 100%);
+        color: white;
+        border-radius: 15px 15px 0 0;
+        padding: 1rem;
+    }
+    
+    .filters {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    }
+    
+    .chart-container {
+        position: relative;
+        height: 300px;
+        margin-bottom: 2rem;
+    }
+    
+    #map {
+        height: 400px;
+        border-radius: 15px;
+    }
+    
+    .btn-gradient {
+        background: linear-gradient(135deg, #4a90e2 0%, #357abd 100%);
+        color: white;
+        border: none;
+        padding: 0.5rem 1.5rem;
+        border-radius: 25px;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-gradient:hover {
+        background: linear-gradient(135deg, #357abd 0%, #2a5f94 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <h2 class="mb-4">Relatórios</h2>
+    
+    <!-- Filtros -->
+    <div class="filters">
+        <div class="row">
+            <div class="col-md-3">
+                <div class="mb-3">
+                    <label for="data_inicio" class="form-label">Data Inicial</label>
+                    <input type="date" class="form-control" id="data_inicio">
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="mb-3">
+                    <label for="data_fim" class="form-label">Data Final</label>
+                    <input type="date" class="form-control" id="data_fim">
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="form-group">
+                    <label for="transportadora">Transportadora:</label>
+                    <select class="form-control" id="transportadora">
+                        <option value="">Todas as transportadoras</option>
+                    </select>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="form-group">
+                    <label for="cidade">Cidade:</label>
+                    <select class="form-control" id="cidade">
+                        <option value="">Todas as cidades</option>
+                    </select>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="form-group">
+                    <label for="status">Status:</label>
+                    <select class="form-control" id="status">
+                        <option value="">Todos os status</option>
+                        <option value="Em andamento">Em andamento</option>
+                        <option value="Concluído">Concluído</option>
+                        <option value="Cancelado">Cancelado</option>
+                    </select>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="form-group">
+                    <label for="cliente">Cliente:</label>
+                    <select class="form-control" id="cliente">
+                        <option value="">Todos os clientes</option>
+                    </select>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="form-group mt-4">
+                    <button class="btn btn-gradient w-100" onclick="aplicarFiltros()">
+                        <i class="fas fa-sync-alt me-2"></i>Atualizar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gráficos -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <div class="card card-3d">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Evolução de Cargas</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="evolucaoChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card card-3d">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Distribuição por Status</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="statusChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Métricas Financeiras -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card card-3d">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Valores de Frete</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Valor Médio:</strong> <span id="valor-medio-frete">R$ 0,00</span></p>
+                    <p><strong>Valor Total:</strong> <span id="valor-total-frete">R$ 0,00</span></p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card card-3d">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Valores por KG/KM</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Valor Médio/KG:</strong> <span id="valor-medio-kg">R$ 0,00</span></p>
+                    <p><strong>Valor Médio/KM:</strong> <span id="valor-medio-km">R$ 0,00</span></p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card card-3d">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Diárias</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Valor Médio:</strong> <span id="valor-medio-diaria">R$ 0,00</span></p>
+                    <p><strong>Valor Total:</strong> <span id="valor-total-diaria">R$ 0,00</span></p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card card-3d">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Entregas Extras</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Valor Total:</strong> <span id="valor-total-extras">R$ 0,00</span></p>
+                    <p><strong>Quantidade:</strong> <span id="qtd-extras">0</span></p>
+                </div>
+            </div>
+        </div>
+    </div>
+<!-- Card de Peso -->
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card card-3d">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Resumo de Peso Transportado</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <p><strong>Total:</strong> <span id="peso-total">0 kg</span></p>
+                    </div>
+                    <div class="col-md-3">
+                        <p><strong>Média:</strong> <span id="peso-medio">0 kg</span></p>
+                    </div>
+                    <div class="col-md-3">
+                        <p><strong>Mínimo:</strong> <span id="peso-minimo">0 kg</span></p>
+                    </div>
+                    <div class="col-md-3">
+                        <p><strong>Máximo:</strong> <span id="peso-maximo">0 kg</span></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+    <!-- Distribuição Geográfica -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card card-3d">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Distribuição Geográfica</h5>
+                </div>
+                <div class="card-body">
+                    <div id="map"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+<script>
+let map;
+let markers = [];
+let evolucaoChart;
+let statusChart;
+
+function getCsrfToken() {
+    return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+}
+
+function carregarTransportadoras() {
+    fetch('/api/relatorios/transportadoras')
+        .then(response => response.json())
+        .then(data => {
+            const select = document.getElementById('transportadora');
+            select.innerHTML = '<option value="">Todas as transportadoras</option>';
+            data.forEach(transportadora => {
+                const option = document.createElement('option');
+                option.value = transportadora.id;
+                option.textContent = transportadora.nome;
+                select.appendChild(option);
+            });
+        })
+        .catch(error => console.error('Erro ao carregar transportadoras:', error));
+}
+
+function carregarClientes() {
+    fetch('/api/relatorios/clientes')
+        .then(response => response.json())
+        .then(data => {
+            const select = document.getElementById('cliente');
+            select.innerHTML = '<option value="">Todos os clientes</option>';
+            data.forEach(cliente => {
+                const option = document.createElement('option');
+                option.value = cliente.id;
+                option.textContent = cliente.nome;
+                select.appendChild(option);
+            });
+        })
+        .catch(error => console.error('Erro ao carregar clientes:', error));
+}
+
+function carregarCidades() {
+    fetch('/api/relatorios/cidades')
+        .then(response => response.json())
+        .then(data => {
+            const select = document.getElementById('cidade');
+            select.innerHTML = '<option value="">Todas as cidades</option>';
+            data.forEach(cidade => {
+                const option = document.createElement('option');
+                option.value = cidade;
+                option.textContent = cidade;
+                select.appendChild(option);
+            });
+        })
+        .catch(error => console.error('Erro ao carregar cidades:', error));
+}
+
+function inicializarMapa() {
+    if (!map) {
+        map = L.map('map').setView([-15.7801, -47.9292], 4);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: ' OpenStreetMap contributors'
+        }).addTo(map);
+    }
+}
+
+function aplicarFiltros() {
+    // Mostrar indicador de carregamento
+    document.querySelectorAll('.card-3d').forEach(card => {
+        card.style.opacity = '0.5';
+    });
+
+    const data_inicio = document.getElementById('data_inicio')?.value || '';
+    const data_fim = document.getElementById('data_fim')?.value || '';
+    const transportadora = document.getElementById('transportadora')?.value || '';
+    const cidade = document.getElementById('cidade')?.value || '';
+    const status = document.getElementById('status')?.value || '';
+    const cliente = document.getElementById('cliente')?.value || '';
+
+    console.log('Aplicando filtros:', {
+        data_inicio,
+        data_fim,
+        transportadora,
+        cidade,
+        status,
+        cliente
+    });
+
+    let url = '/api/relatorios/dados?';
+    const params = new URLSearchParams();
+    if (data_inicio) params.append('data_inicio', data_inicio);
+    if (data_fim) params.append('data_fim', data_fim);
+    if (transportadora) params.append('transportadora', transportadora);
+    if (cidade) params.append('cidade', cidade);
+    if (status) params.append('status', status);
+    if (cliente) params.append('cliente', cliente);
+
+    url += params.toString();
+
+    fetch(url, {
+        method: 'GET',
+        headers: {
+            'Accept': 'application/json',
+            'X-CSRF-Token': getCsrfToken()
+        },
+        credentials: 'same-origin'
+    })
+    .then(response => {
+        if (!response.ok) {
+            if (response.status === 401) {
+                window.location.href = '/login';
+                throw new Error('Não autenticado');
+            }
+            if (response.status === 403) {
+                throw new Error('Acesso negado');
+            }
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log('Dados recebidos:', data);
+        if (data.error) {
+            throw new Error(data.error);
+        }
+        atualizarGraficos(data);
+        if (data.localizacoes) {
+            atualizarMapa(data.localizacoes);
+        }
+        // Restaurar opacidade
+        document.querySelectorAll('.card-3d').forEach(card => {
+            card.style.opacity = '1';
+        });
+    })
+    .catch(error => {
+        console.error('Erro ao buscar dados:', error);
+        limparValores();
+        document.querySelectorAll('.card-3d').forEach(card => {
+            card.style.opacity = '1';
+        });
+        if (error.message === 'Não autenticado') {
+            alert('Sua sessão expirou. Por favor, faça login novamente.');
+        } else if (error.message === 'Acesso negado') {
+            alert('Você não tem permissão para acessar esta página.');
+        } else {
+            alert('Erro ao carregar dados. Por favor, tente novamente.');
+        }
+    });
+}
+
+function formatarMoeda(valor) {
+    return new Intl.NumberFormat('pt-BR', {
+        style: 'currency',
+        currency: 'BRL'
+    }).format(valor);
+}
+
+function formatarPeso(peso) {
+    return new Intl.NumberFormat('pt-BR', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    }).format(peso);
+}
+
+function limparValores() {
+    // Métricas financeiras
+    document.getElementById('valor-medio-frete').textContent = 'R$ 0,00';
+    document.getElementById('valor-total-frete').textContent = 'R$ 0,00';
+    document.getElementById('valor-medio-kg').textContent = 'R$ 0,00';
+    document.getElementById('valor-medio-km').textContent = 'R$ 0,00';
+    document.getElementById('valor-medio-diaria').textContent = 'R$ 0,00';
+    document.getElementById('valor-total-diaria').textContent = 'R$ 0,00';
+    document.getElementById('valor-total-extras').textContent = 'R$ 0,00';
+    document.getElementById('qtd-extras').textContent = '0';
+    
+    // Métricas de peso
+    document.getElementById('peso-total').textContent = '0 kg';
+    document.getElementById('peso-medio').textContent = '0 kg';
+    document.getElementById('peso-minimo').textContent = '0 kg';
+    document.getElementById('peso-maximo').textContent = '0 kg';
+    
+    // Limpar gráficos
+    if (evolucaoChart) evolucaoChart.destroy();
+    if (statusChart) statusChart.destroy();
+    if (map) {
+        markers.forEach(marker => marker.remove());
+        markers = [];
+    }
+}
+
+function atualizarGraficos(dados) {
+    // Atualizar métricas financeiras
+    document.getElementById('valor-medio-frete').textContent = formatarMoeda(dados.frete.media);
+    document.getElementById('valor-total-frete').textContent = formatarMoeda(dados.frete.total);
+    document.getElementById('valor-medio-kg').textContent = formatarMoeda(dados.valor_por_kg);
+    document.getElementById('valor-medio-km').textContent = formatarMoeda(dados.valor_por_km);
+    document.getElementById('valor-medio-diaria').textContent = formatarMoeda(dados.diarias.media);
+    document.getElementById('valor-total-diaria').textContent = formatarMoeda(dados.diarias.total);
+    document.getElementById('valor-total-extras').textContent = formatarMoeda(dados.total_entregas_adicionais);
+    document.getElementById('qtd-extras').textContent = dados.total_entregas_adicionais;
+
+    // Atualizar métricas de peso
+    document.getElementById('peso-total').textContent = formatarPeso(dados.resumo_kg.total);
+    document.getElementById('peso-medio').textContent = formatarPeso(dados.resumo_kg.media);
+    document.getElementById('peso-minimo').textContent = formatarPeso(dados.resumo_kg.minimo);
+    document.getElementById('peso-maximo').textContent = formatarPeso(dados.resumo_kg.maximo);
+
+    // Atualizar gráfico de evolução
+    const ctx = document.getElementById('evolucaoChart').getContext('2d');
+    if (evolucaoChart) evolucaoChart.destroy();
+    evolucaoChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: dados.evolucao.map(item => item.data),
+            datasets: [{
+                label: 'Quantidade de Cargas',
+                data: dados.evolucao.map(item => item.quantidade),
+                borderColor: 'rgb(75, 192, 192)',
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Evolução de Cargas'
+                }
+            }
+        }
+    });
+
+    // Atualizar gráfico de status
+    const ctxStatus = document.getElementById('statusChart').getContext('2d');
+    if (statusChart) statusChart.destroy();
+    statusChart = new Chart(ctxStatus, {
+        type: 'doughnut',
+        data: {
+            labels: Object.keys(dados.status),
+            datasets: [{
+                data: Object.values(dados.status),
+                backgroundColor: [
+                    'rgb(255, 205, 86)', // Em andamento
+                    'rgb(75, 192, 192)', // Concluído
+                    'rgb(255, 99, 132)'  // Cancelado
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Distribuição por Status'
+                }
+            }
+        }
+    });
+
+    // Atualizar mapa
+    if (map) {
+        markers.forEach(marker => marker.remove());
+        markers = [];
+        
+        dados.localizacoes.forEach(loc => {
+            const marker = L.marker([loc.lat, loc.lng])
+                .bindPopup(`<b>${loc.cidade}</b><br>Cargas: ${loc.cargas.length}`);
+            marker.addTo(map);
+            markers.push(marker);
+        });
+        
+        if (markers.length > 0) {
+            const group = new L.featureGroup(markers);
+            map.fitBounds(group.getBounds());
+        }
+    }
+}
+
+function atualizarMapa(localizacoes) {
+    // Limpar marcadores existentes
+    markers.forEach(marker => map.removeLayer(marker));
+    markers = [];
+
+    // Adicionar novos marcadores
+    localizacoes.forEach(loc => {
+        const marker = L.marker([loc.lat, loc.lng])
+            .bindPopup(`
+                <strong>${loc.cidade}</strong><br>
+                Cargas: ${loc.cargas.length}
+            `);
+        markers.push(marker);
+        marker.addTo(map);
+    });
+
+    // Ajustar visualização para mostrar todos os marcadores
+    if (markers.length > 0) {
+        const group = new L.featureGroup(markers);
+        map.fitBounds(group.getBounds());
+    }
+}
+
+// Função para debounce dos filtros
+const debouncedAplicarFiltros = debounce(aplicarFiltros, 500);
+
+// Inicializar quando o documento estiver pronto
+document.addEventListener('DOMContentLoaded', function() {
+    // Inicializar mapa e carregar dados em paralelo
+    Promise.all([
+        inicializarMapa(),
+        carregarTransportadoras(),
+        carregarClientes(),
+        carregarCidades()
+    ]).then(() => {
+        aplicarFiltros();
+    });
+
+    // Adicionar event listeners para filtros
+    document.getElementById('data_inicio').addEventListener('change', debouncedAplicarFiltros);
+    document.getElementById('data_fim').addEventListener('change', debouncedAplicarFiltros);
+    document.getElementById('transportadora').addEventListener('change', debouncedAplicarFiltros);
+    document.getElementById('cidade').addEventListener('change', debouncedAplicarFiltros);
+    document.getElementById('status').addEventListener('change', debouncedAplicarFiltros);
+    document.getElementById('cliente').addEventListener('change', debouncedAplicarFiltros);
+});
+
+// Função de debounce para evitar múltiplas chamadas
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+</script>
+{% endblock %}

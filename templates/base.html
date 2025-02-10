@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>{% block title %}{% endblock %} - Sistema de Controle de Cargas</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/boxicons@2.0.7/css/boxicons.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+    {% block styles %}{% endblock %}
+    <style>
+        .sidebar {
+            height: 100vh;
+            background-color: #343a40;
+            padding-top: 20px;
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 250px;
+            z-index: 1000;
+        }
+        .sidebar a {
+            color: white;
+            text-decoration: none;
+            padding: 10px 15px;
+            display: block;
+        }
+        .sidebar a:hover {
+            background-color: #495057;
+        }
+        .main-content {
+            margin-left: 250px;
+            padding: 20px;
+            padding-bottom: 50px; /* Espaço para o footer */
+            min-height: calc(100vh - 50px); /* Altura mínima considerando o footer */
+        }
+        .user-info {
+            color: white;
+            padding: 15px;
+            border-bottom: 1px solid #495057;
+            margin-bottom: 20px;
+        }
+        .dropdown-menu {
+            background-color: #343a40;
+            border: 1px solid #495057;
+        }
+        .dropdown-item {
+            color: white !important;
+            padding: 8px 15px;
+        }
+        .dropdown-item:hover {
+            background-color: #495057 !important;
+            color: white !important;
+        }
+        .dropdown-divider {
+            border-top: 1px solid #495057;
+        }
+        .footer {
+            background-color: #343a40;
+            color: rgba(255, 255, 255, 0.75);
+            padding: 0.4rem 0;
+            text-align: center;
+            font-size: 0.85em;
+            line-height: 1;
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            z-index: 1000;
+        }
+        .footer p {
+            margin: 0;
+        }
+        .footer a {
+            color: #3498db;
+            text-decoration: none;
+            margin: 0 2px;
+            transition: color 0.3s ease;
+        }
+        .footer a:hover {
+            color: #2980b9;
+        }
+        .footer .social-icons {
+            display: inline-block;
+            margin-left: 8px;
+        }
+        .footer .social-icons a {
+            color: rgba(255, 255, 255, 0.75);
+            margin: 0 4px;
+            transition: all 0.3s ease;
+        }
+        .footer .social-icons a:hover {
+            color: #3498db;
+            transform: translateY(-1px);
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-auto px-0">
+                <div class="sidebar">
+                    <div class="user-info">
+                        <h5>{{ current_user.username }}</h5>
+                        <small>{{ current_user.role }}</small>
+                    </div>
+                    <nav>
+                        <a href="{{ url_for('lista_cargas') }}"><i class='bx bxs-truck'></i> Cargas</a>
+                        <a href="{{ url_for('resumos') }}"><i class='bx bxs-dashboard'></i> Resumos</a>
+                        <a href="{{ url_for('relatorios.index') }}"><i class='bx bxs-report'></i> Relatórios</a>
+                        
+                        {% if current_user.is_gerente %}
+                            <a href="{{ url_for('nova_carga') }}"><i class='bx bxs-plus-circle'></i> Nova Carga</a>
+                            <a href="{{ url_for('devolucao.index') }}"><i class='bx bxs-package'></i> Devoluções</a>
+                            <a href="{{ url_for('sislog.dashboard') }}"><i class='bx bxs-truck'></i> Dashboard Frota</a>
+                            <a href="{{ url_for('transportadora.index') }}"><i class='bx bxs-truck'></i> Transportadoras</a>
+                            <a href="{{ url_for('usuarios') }}"><i class='bx bxs-user-detail'></i> Usuários</a>
+                        {% elif current_user.can_edit %}
+                            {% if current_user.is_logistica %}
+                            <a href="{{ url_for('devolucao.index') }}"><i class='bx bxs-package'></i> Devoluções</a>
+                            <a href="{{ url_for('transportadora.index') }}"><i class='bx bxs-truck'></i> Transportadoras</a>
+                            {% endif %}
+                            {% if current_user.is_financeiro %}
+                            <a href="{{ url_for('transportadora.index') }}"><i class='bx bxs-truck'></i> Transportadoras</a>
+                            {% endif %}
+                        {% endif %}
+                        
+                        {% if current_user.is_admin %}
+                        <a href="{{ url_for('admin') }}"><i class='bx bxs-cog'></i> Admin</a>
+                        {% endif %}
+                        
+                        <a href="{{ url_for('logout') }}"><i class='bx bxs-log-out'></i> Sair</a>
+                    </nav>
+                </div>
+            </div>
+            
+            <!-- Main Content -->
+            <div class="col main-content">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+                
+                {% block content %}{% endblock %}
+            </div>
+        </div>
+    </div>
+
+    <footer style="background-color: #343a40; color: rgba(255, 255, 255, 0.75); padding: 0.4rem 0; text-align: center; font-size: 0.85em; line-height: 1; position: fixed; bottom: 0; width: 100%; z-index: 1000;">
+        <div class="container">
+            <p style="margin: 0;">2025 Q-Delícia. Todos os direitos reservados. | Desenvolvido por <a href="#" style="color: #3498db; text-decoration: none; margin: 0 2px;">JC Bytes - Soluções em Tecnologia</a> | <span style="display: inline-block; margin-left: 8px;"><a href="#" title="WhatsApp" style="color: rgba(255, 255, 255, 0.75); margin: 0 4px; transition: all 0.3s ease;"><i class="fab fa-whatsapp"></i></a><a href="#" title="Instagram" style="color: rgba(255, 255, 255, 0.75); margin: 0 4px; transition: all 0.3s ease;"><i class="fab fa-instagram"></i></a><a href="#" title="LinkedIn" style="color: rgba(255, 255, 255, 0.75); margin: 0 4px; transition: all 0.3s ease;"><i class="fab fa-linkedin"></i></a></span></p>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="{{ url_for('static', filename='js/notifications.js') }}"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

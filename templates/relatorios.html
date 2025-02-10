@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="h3 mb-4">Relatórios</h1>
+
+    <!-- Filtros -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form id="filtro-form" class="row g-3">
+                <div class="col-md-4">
+                    <label for="data_inicio" class="form-label">Data Início</label>
+                    <input type="date" class="form-control" id="data_inicio" name="data_inicio">
+                </div>
+                <div class="col-md-4">
+                    <label for="data_fim" class="form-label">Data Fim</label>
+                    <input type="date" class="form-control" id="data_fim" name="data_fim">
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary">Filtrar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Cards com Informações -->
+    <div class="row">
+        <!-- Valor Médio e Total por Frete -->
+        <div class="col-md-6 col-lg-4 mb-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Frete</h5>
+                    <div class="mt-3">
+                        <p class="mb-2">Valor Médio: <strong class="text-primary" id="frete-medio">R$ 0,00</strong></p>
+                        <p class="mb-0">Valor Total: <strong class="text-primary" id="frete-total">R$ 0,00</strong></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Valor por KG e KM -->
+        <div class="col-md-6 col-lg-4 mb-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Valores Médios</h5>
+                    <div class="mt-3">
+                        <p class="mb-2">Por KG: <strong class="text-primary" id="valor-kg">R$ 0,00</strong></p>
+                        <p class="mb-0">Por KM: <strong class="text-primary" id="valor-km">R$ 0,00</strong></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Diárias -->
+        <div class="col-md-6 col-lg-4 mb-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Diárias</h5>
+                    <div class="mt-3">
+                        <p class="mb-2">Valor Médio: <strong class="text-primary" id="diaria-media">R$ 0,00</strong></p>
+                        <p class="mb-0">Valor Total: <strong class="text-primary" id="diaria-total">R$ 0,00</strong></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Entregas Adicionais -->
+        <div class="col-md-6 col-lg-4 mb-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Entregas Adicionais</h5>
+                    <div class="mt-3">
+                        <p class="mb-0">Valor Total: <strong class="text-primary" id="entregas-total">R$ 0,00</strong></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Resumo KG Transportado -->
+        <div class="col-md-6 col-lg-8 mb-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Resumo KG Transportado</h5>
+                    <div class="mt-3">
+                        <div class="row">
+                            <div class="col-sm-6 col-md-3">
+                                <p class="mb-2">Total: <strong class="text-primary" id="kg-total">0 kg</strong></p>
+                            </div>
+                            <div class="col-sm-6 col-md-3">
+                                <p class="mb-2">Média: <strong class="text-primary" id="kg-media">0 kg</strong></p>
+                            </div>
+                            <div class="col-sm-6 col-md-3">
+                                <p class="mb-2">Mínimo: <strong class="text-primary" id="kg-minimo">0 kg</strong></p>
+                            </div>
+                            <div class="col-sm-6 col-md-3">
+                                <p class="mb-0">Máximo: <strong class="text-primary" id="kg-maximo">0 kg</strong></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- Card de Peso -->
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card card-3d">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Resumo de Peso Transportado</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <p><strong>Total:</strong> <span id="peso-total">0 kg</span></p>
+                    </div>
+                    <div class="col-md-3">
+                        <p><strong>Média:</strong> <span id="peso-medio">0 kg</span></p>
+                    </div>
+                    <div class="col-md-3">
+                        <p><strong>Mínimo:</strong> <span id="peso-minimo">0 kg</span></p>
+                    </div>
+                    <div class="col-md-3">
+                        <p><strong>Máximo:</strong> <span id="peso-maximo">0 kg</span></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function formatarMoeda(valor) {
+        return new Intl.NumberFormat('pt-BR', {
+            style: 'currency',
+            currency: 'BRL'
+        }).format(valor);
+    }
+
+    function formatarPeso(valor) {
+        return new Intl.NumberFormat('pt-BR', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        }).format(valor) + ' kg';
+    }
+
+    function atualizarDados() {
+        const dataInicio = document.getElementById('data_inicio').value;
+        const dataFim = document.getElementById('data_fim').value;
+        
+        let url = '/api/relatorios/dados';
+        if (dataInicio && dataFim) {
+            url += `?data_inicio=${dataInicio}&data_fim=${dataFim}`;
+        }
+        
+        window.api.get(url)
+            .then(data => {
+                // Atualizar valores de frete
+                document.getElementById('frete-medio').textContent = formatarMoeda(data.frete.media);
+                document.getElementById('frete-total').textContent = formatarMoeda(data.frete.total);
+                
+                // Atualizar valores por kg e km
+                document.getElementById('valor-kg').textContent = formatarMoeda(data.valor_por_kg);
+                document.getElementById('valor-km').textContent = formatarMoeda(data.valor_por_km);
+                
+                // Atualizar valores de diárias
+                document.getElementById('diaria-media').textContent = formatarMoeda(data.diarias.media);
+                document.getElementById('diaria-total').textContent = formatarMoeda(data.diarias.total);
+                
+                // Atualizar valor de entregas adicionais
+                document.getElementById('entregas-total').textContent = formatarMoeda(data.total_entregas_adicionais);
+                
+                // Atualizar resumo de kg
+                document.getElementById('kg-total').textContent = formatarPeso(data.resumo_kg.total);
+                document.getElementById('kg-media').textContent = formatarPeso(data.resumo_kg.media);
+                document.getElementById('kg-minimo').textContent = formatarPeso(data.resumo_kg.minimo);
+                document.getElementById('kg-maximo').textContent = formatarPeso(data.resumo_kg.maximo);
+            })
+            .catch(error => {
+                console.error('Erro ao buscar dados:', error);
+                alert('Erro ao buscar dados do relatório. Por favor, tente novamente.');
+            });
+    }
+
+    // Atualizar dados ao enviar o formulário
+    document.getElementById('filtro-form').addEventListener('submit', function(event) {
+        event.preventDefault();
+        atualizarDados();
+    });
+
+    // Carregar dados iniciais
+    atualizarDados();
+</script>
+{% endblock %}

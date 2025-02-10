@@ -1,0 +1,1345 @@
+{% extends "index.html" %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <h2>{% if edit_mode %}Editar{% else %}Nova{% endif %} Carga</h2>
+    <form method="POST" action="{{ url_for('nova_carga') }}" id="formCarga">
+        <!-- INFORMAÇÕES BÁSICAS -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h4>Informações Básicas</h4>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label class="form-label">Número da Carga</label>
+                            <input type="text" class="form-control" name="carga" value="{{ carga.carga if carga else '' }}" required>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label class="form-label">Rota</label>
+                            <div id="rotas-container">
+                                <div class="input-group mb-2">
+                                    <select class="form-select rota-select" name="rota[]">
+                                        <option value="">Selecione uma cidade</option>
+                                        {% for cidade in cidades %}
+                                        <option value="{{ cidade.nome }}">{{ cidade.nome }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <button type="button" class="btn btn-primary" onclick="adicionarRota()">
+                                        <i class="fas fa-plus"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label class="form-label">NFs/CTe</label>
+                            <input type="text" class="form-control" name="nfs_cte" value="{{ carga.nfs_cte if carga else '' }}">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label class="form-label">NF</label>
+                            <input type="text" class="form-control" name="nf" value="{{ carga.nf if carga else '' }}">
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label class="form-label">Transportadora</label>
+                            <div class="input-group">
+                                <select class="form-select" name="transportadora" id="transportadora-select">
+                                    <option value="">Selecione uma transportadora</option>
+                                    {% for transportadora in transportadoras %}
+                                    <option value="{{ transportadora.id }}" {% if carga and carga.transportadora == transportadora.nome %}selected{% endif %}>
+                                        {{ transportadora.nome }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#novaTransportadoraModal">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label class="form-label">Veículo</label>
+                            <div class="input-group">
+                                <select class="form-select" name="veiculo" id="veiculo-select" disabled>
+                                    <option value="">Selecione um veículo</option>
+                                </select>
+                                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#novoVeiculoModal" id="btn-novo-veiculo" disabled>
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label class="form-label">Motorista</label>
+                            <input type="text" class="form-control" name="motorista" value="{{ carga.motorista if carga else '' }}">
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label class="form-label">Data Saída</label>
+                            <input type="date" class="form-control" name="data_saida" value="{{ carga.data_saida|string if carga and carga.data_saida else '' }}">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label class="form-label">Hora Saída</label>
+                            <input type="time" class="form-control" name="hora_saida" value="{{ carga.hora_saida|string if carga and carga.hora_saida else '' }}">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label class="form-label">Data Chegada</label>
+                            <input type="date" class="form-control" name="data_chegada" value="{{ carga.data_chegada|string if carga and carga.data_chegada else '' }}">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label class="form-label">Hora Chegada</label>
+                            <input type="time" class="form-control" name="hora_chegada" value="{{ carga.hora_chegada|string if carga and carga.hora_chegada else '' }}">
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label class="form-label">KM Inicial</label>
+                            <input type="number" step="0.01" class="form-control" name="km_inicial" value="{{ carga.km_inicial if carga else '' }}" onchange="calcularKmTotal()">
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label class="form-label">KM Final</label>
+                            <input type="number" step="0.01" class="form-control" name="km_final" value="{{ carga.km_final if carga else '' }}" onchange="calcularKmTotal()">
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label class="form-label">KM Total</label>
+                            <input type="number" step="0.01" class="form-control" name="km_total" value="{{ carga.km_total if carga else '' }}" readonly>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label for="status" class="form-label">Status</label>
+                            <select class="form-select" id="status" name="status" required>
+                                <option value="Em Andamento" {% if carga and carga.status == 'Em Andamento' %}selected{% endif %}>Em Andamento</option>
+                                <option value="Fechado" {% if carga and carga.status == 'Fechado' %}selected{% endif %}>Fechado</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-8">
+                        <div class="mb-3">
+                            <label class="form-label">Observações</label>
+                            <input type="text" class="form-control" name="observacoes" maxlength="200" placeholder="Observações curtas sobre a carga" value="{{ carga.observacoes if carga else '' }}">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ROMANEIO -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h4>Romaneio</h4>
+            </div>
+            <div class="card-body">
+                <div id="romaneios">
+                    <div class="romaneio-item mb-3 border p-3">
+                        <div class="row">
+                            <div class="col-md-2">
+                                <div class="mb-3">
+                                    <label class="form-label">Nota</label>
+                                    <input type="text" class="form-control nota" name="nota[]" value="{{ carga.romaneios[0].nota if carga and carga.romaneios else '' }}">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label class="form-label">Código Cliente</label>
+                                    <div class="input-group">
+                                        <select class="form-select codigo-cliente" name="cliente[]" required>
+                                            <option value="">Selecione...</option>
+                                            <!-- Será preenchido via JavaScript -->
+                                        </select>
+                                        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#novoClienteModal">
+                                            <i class="fas fa-plus"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="mb-3">
+                                    <label class="form-label">Condições Pagamento</label>
+                                    <input type="text" class="form-control" name="condicoes_pagamento[]" value="{{ carga.romaneios[0].condicoes_pagamento if carga and carga.romaneios else '' }}">
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="mb-3">
+                                    <label class="form-label">Forma Pagamento</label>
+                                    <select class="form-select" name="forma_pagamento[]">
+                                        <option value="">Selecione...</option>
+                                        <option value="Dinheiro">Dinheiro</option>
+                                        <option value="Bonificação">Bonificação</option>
+                                        <option value="Depósito em conta">Depósito em conta</option>
+                                        <option value="Boleto">Boleto</option>
+                                        <option value="PIX">PIX</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="mb-3">
+                                    <label class="form-label">Qtd. Embalagens</label>
+                                    <input type="number" class="form-control" name="qtd_embalagens[]" value="{{ carga.romaneios[0].qtd_embalagens if carga and carga.romaneios else '' }}" onchange="calcularTotais()">
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="mb-3">
+                                    <label class="form-label">Peso Bruto</label>
+                                    <input type="number" step="0.01" class="form-control" name="peso_bruto[]" value="{{ carga.romaneios[0].peso_bruto if carga and carga.romaneios else '' }}" onchange="calcularTotais()">
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="mb-3">
+                                    <label class="form-label">Valor Líquido</label>
+                                    <input type="text" class="form-control" name="valor_liquido[]" value="{{ carga.romaneios[0].valor_liquido|string if carga and carga.romaneios else 'R$ 0,00' }}" onchange="calcularTotais()">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <button type="button" class="btn btn-primary" onclick="adicionarRomaneio()">+ Adicionar Romaneio</button>
+                
+                <div class="row mt-3">
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label class="form-label">Total Embalagens</label>
+                            <input type="number" class="form-control" id="total_embalagens" readonly>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label class="form-label">Peso Bruto Total</label>
+                            <input type="number" step="0.01" class="form-control" id="total_peso_bruto" readonly>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label class="form-label">Valor Total</label>
+                            <input type="text" class="form-control" id="total_valor_liquido" readonly>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- RESUMO POR TIPO DE MOVIMENTO -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h4>Resumo por Tipo de Movimento</h4>
+                <button type="button" class="btn btn-primary btn-sm" onclick="adicionarMovimento()">
+                    <i class="fas fa-plus"></i> Adicionar Movimento
+                </button>
+            </div>
+            <div class="card-body">
+                <div id="movimentos">
+                    <div class="movimento-item mb-3 border p-3">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label class="form-label">Código do Movimento</label>
+                                    <select class="form-select codigo-movimento" name="codigo_movimento[]" onchange="atualizarTipoMovimento(this)">
+                                        <option value="">Selecione um código</option>
+                                        {% for codigo in codigos_movimento %}
+                                        <option value="{{ codigo }}">{{ codigo }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-8">
+                                <div class="mb-3">
+                                    <label class="form-label">Tipo de Movimento</label>
+                                    <input type="text" class="form-control tipo-movimento" name="tipo_movimento[]" readonly>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CONTROLE DE FRETE -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h4>Controle de Frete</h4>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label class="form-label">Tipo de Frete</label>
+                            <select class="form-select" name="tipo_frete">
+                                <option value="Empresa">Empresa</option>
+                                <option value="Terceirizado">Terceirizado</option>
+                                <option value="Cliente">Cliente</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label class="form-label">Origem</label>
+                            <input type="text" class="form-control" name="origem">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label class="form-label">KM Inicial</label>
+                            <input type="number" class="form-control" name="km_inicial_frete" onchange="calcularKmRodados()">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label class="form-label">KM Final</label>
+                            <input type="number" class="form-control" name="km_final_frete" onchange="calcularKmRodados()">
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label class="form-label">KM Rodados</label>
+                            <input type="number" class="form-control" name="km_rodados" readonly>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label class="form-label">Valor do Frete</label>
+                            <input type="text" class="form-control" name="valor_frete" value="R$ 0,00" onchange="calcularPrecos()">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label class="form-label">Abastecimento</label>
+                            <input type="text" class="form-control" name="abastecimento" value="R$ 0,00">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label class="form-label">Impostos</label>
+                            <input type="text" class="form-control" name="impostos" value="R$ 0,00">
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label class="form-label">Adiantamento</label>
+                            <input type="text" class="form-control" name="adiantamento" value="R$ 0,00">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label class="form-label">Entrega Extra</label>
+                            <input type="text" class="form-control" name="entrega_extra" value="R$ 0,00">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label class="form-label">Outros</label>
+                            <input type="text" class="form-control" name="outros" value="R$ 0,00">
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label class="form-label">Preço por KM</label>
+                            <input type="text" class="form-control" name="preco_km" value="R$ 0,00" readonly>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label class="form-label">Preço por KG</label>
+                            <input type="text" class="form-control" name="preco_kg" value="R$ 0,00" readonly>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mb-4">
+            <div class="col">
+                <button type="submit" class="btn btn-primary">Salvar Carga</button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- Modal Novo Cliente -->
+<div class="modal fade" id="novoClienteModal" tabindex="-1" aria-labelledby="novoClienteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="novoClienteModalLabel">Novo Cliente</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formNovoCliente">
+                    <div class="mb-3">
+                        <label for="codigoCliente" class="form-label">Código</label>
+                        <input type="text" class="form-control" id="codigoCliente" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="nomeCliente" class="form-label">Nome</label>
+                        <input type="text" class="form-control" id="nomeCliente" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="salvarNovoCliente()">Salvar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Nova Rota -->
+<div class="modal fade" id="novaRotaModal" tabindex="-1" aria-labelledby="novaRotaModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="novaRotaModalLabel">Nova Cidade</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formNovaCidade">
+                    <div class="mb-3">
+                        <label for="codigoCidade" class="form-label">Código</label>
+                        <input type="text" class="form-control" id="codigoCidade" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="nomeCidade" class="form-label">Nome</label>
+                        <input type="text" class="form-control" id="nomeCidade" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="salvarNovaCidade()">Salvar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Nova Transportadora -->
+<div class="modal fade" id="novaTransportadoraModal" tabindex="-1" aria-labelledby="novaTransportadoraModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="novaTransportadoraModalLabel">Nova Transportadora</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formNovaTransportadora">
+                    <div class="mb-3">
+                        <label class="form-label">Nome</label>
+                        <input type="text" class="form-control" name="nome" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">CNPJ</label>
+                        <input type="text" class="form-control" name="cnpj" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Endereço</label>
+                        <input type="text" class="form-control" name="endereco">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Telefone</label>
+                        <input type="text" class="form-control" name="telefone">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
+                        <input type="email" class="form-control" name="email">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Contato</label>
+                        <input type="text" class="form-control" name="contato">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="salvarTransportadora()">Salvar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Novo Veículo -->
+<div class="modal fade" id="novoVeiculoModal" tabindex="-1" aria-labelledby="novoVeiculoModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="novoVeiculoModalLabel">Novo Veículo</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formNovoVeiculo">
+                    <div class="mb-3">
+                        <label for="placa" class="form-label">Placa</label>
+                        <input type="text" class="form-control" id="placa" name="placa" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="modelo" class="form-label">Modelo</label>
+                        <input type="text" class="form-control" id="modelo" name="modelo" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="capacidade" class="form-label">Capacidade (kg)</label>
+                        <input type="number" class="form-control" id="capacidade" name="capacidade" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="tipo" class="form-label">Tipo</label>
+                        <select class="form-select" id="tipo" name="tipo" required>
+                            <option value="">Selecione...</option>
+                            <option value="Truck">Truck</option>
+                            <option value="Carreta">Carreta</option>
+                            <option value="Van">Van</option>
+                            <option value="3/4">3/4</option>
+                            <option value="Toco">Toco</option>
+                            <option value="Furgão">Furgão</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="salvarNovoVeiculo()">Salvar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Novo Motorista -->
+<div class="modal fade" id="novoMotoristaModal" tabindex="-1" aria-labelledby="novoMotoristaModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="novoMotoristaModalLabel">Novo Motorista</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formNovoMotorista">
+                    <div class="mb-3">
+                        <label class="form-label">Nome</label>
+                        <input type="text" class="form-control" name="nome" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">CPF</label>
+                        <input type="text" class="form-control" name="cpf" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">CNH</label>
+                        <input type="text" class="form-control" name="cnh" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Telefone</label>
+                        <input type="text" class="form-control" name="telefone">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
+                        <input type="email" class="form-control" name="email">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="salvarNovoMotorista()">Salvar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let romaneioCount = 1;
+let movimentoCount = 1;
+
+// Configuração global do token CSRF
+const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+
+// Função para adicionar headers padrão em todas as requisições fetch
+async function fetchWithCsrf(url, options = {}) {
+    try {
+        const defaultOptions = {
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': csrfToken,
+                'Accept': 'application/json'
+            },
+            credentials: 'same-origin'
+        };
+        
+        const mergedOptions = { ...defaultOptions, ...options };
+        mergedOptions.headers = { ...defaultOptions.headers, ...(options.headers || {}) };
+        
+        console.log(`Fazendo requisição para ${url} com opções:`, mergedOptions);
+        const response = await fetch(url, mergedOptions);
+        console.log(`Resposta da requisição para ${url}:`, response);
+        
+        if (!response.ok) {
+            let errorMessage;
+            try {
+                const errorData = await response.json();
+                errorMessage = errorData.message || `HTTP error! status: ${response.status}`;
+            } catch (e) {
+                errorMessage = await response.text() || `HTTP error! status: ${response.status}`;
+            }
+            console.error(`Erro na requisição para ${url}:`, errorMessage);
+            throw new Error(errorMessage);
+        }
+        
+        return response;
+    } catch (error) {
+        console.error(`Erro ao fazer requisição para ${url}:`, error);
+        throw error;
+    }
+}
+
+// Cache de dados
+let cidadesCache = null;
+let clientesCache = null;
+const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 horas em milissegundos
+
+// Função para mostrar loading
+function showLoading(element) {
+    if (!element) return;
+    element.classList.add('loading');
+    element.disabled = true;
+}
+
+// Função para esconder loading
+function hideLoading(element) {
+    if (!element) return;
+    element.classList.remove('loading');
+    element.disabled = false;
+}
+
+// Função para carregar clientes
+async function carregarClientes() {
+    console.log('Iniciando carregamento de clientes...');
+    const clienteSelects = document.querySelectorAll('.codigo-cliente');
+    console.log('Selects encontrados:', clienteSelects.length);
+    
+    if (!clienteSelects.length) {
+        console.error('Nenhum select de cliente encontrado');
+        return;
+    }
+    
+    try {
+        console.log('Fazendo requisição para /api/clientes...');
+        clienteSelects.forEach(select => showLoading(select));
+        
+        const response = await fetchWithCsrf('/api/clientes');
+        const result = await response.json();
+        console.log('Dados recebidos:', result);
+        
+        // Verifica se a resposta tem dados válidos
+        if (result && Array.isArray(result)) {
+            clientesCache = result;
+            console.log(`Cache atualizado com ${clientesCache.length} clientes`);
+            await atualizarSelectsClientes();
+        } else {
+            console.error('Formato de dados inválido:', result);
+            throw new Error('Formato de dados inválido recebido do servidor');
+        }
+    } catch (error) {
+        console.error('Erro ao carregar clientes:', error);
+        clienteSelects.forEach(select => {
+            select.innerHTML = '<option value="">Erro ao carregar clientes</option>';
+        });
+    } finally {
+        clienteSelects.forEach(select => hideLoading(select));
+    }
+}
+
+// Função para carregar cidades
+async function carregarCidades() {
+    const rotaSelect = document.querySelector('.rota-select');
+    if (!rotaSelect) return;
+    
+    try {
+        showLoading(rotaSelect);
+        const response = await fetchWithCsrf('/api/cidades');
+        const result = await response.json();
+        cidadesCache = result.data;
+        await atualizarSelectsCidades();
+    } catch (error) {
+        console.error('Erro ao carregar cidades:', error);
+    } finally {
+        hideLoading(rotaSelect);
+    }
+}
+
+// Função para carregar veículos de uma transportadora
+async function carregarVeiculos(transportadoraId) {
+    if (!transportadoraId) return;
+    
+    try {
+        const response = await fetchWithCsrf(`/transportadora/api/transportadoras/${transportadoraId}/veiculos`);
+        const veiculos = await response.json();
+        
+        const select = document.getElementById('veiculo-select');
+        select.innerHTML = '<option value="">Selecione...</option>';
+        select.disabled = false;
+        
+        // Habilitar o botão de novo veículo
+        document.getElementById('btn-novo-veiculo').disabled = false;
+        
+        veiculos.forEach(veiculo => {
+            const option = document.createElement('option');
+            option.value = veiculo.id;
+            option.textContent = `${veiculo.placa} - ${veiculo.modelo}`;
+            select.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Erro ao carregar veículos:', error);
+        alert('Erro ao carregar veículos. Por favor, tente novamente.');
+    }
+}
+
+// Função para inicializar o formulário
+async function initForm() {
+    console.log('Iniciando formulário...');
+    try {
+        // Carregar dados iniciais
+        console.log('Carregando dados iniciais...');
+        await carregarClientes();
+        await carregarCidades();
+        
+        // Setup dos eventos
+        console.log('Configurando eventos...');
+        setupEventListeners();
+        
+        console.log('Formulário inicializado com sucesso!');
+    } catch (error) {
+        console.error('Erro ao inicializar formulário:', error);
+    }
+}
+
+// Função para configurar event listeners
+function setupEventListeners() {
+    const transportadoraSelect = document.getElementById('transportadora-select');
+    if (transportadoraSelect) {
+        transportadoraSelect.addEventListener('change', async function() {
+            const transportadoraId = this.value;
+            if (transportadoraId) {
+                await carregarVeiculos(transportadoraId);
+            }
+        });
+    }
+
+    // Limpar formulário de novo veículo quando o modal é fechado
+    const novoVeiculoModal = document.getElementById('novoVeiculoModal');
+    if (novoVeiculoModal) {
+        novoVeiculoModal.addEventListener('hidden.bs.modal', function() {
+            document.getElementById('formNovoVeiculo').reset();
+        });
+    }
+}
+
+// Inicialização quando o DOM estiver pronto
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initForm);
+} else {
+    initForm();
+}
+
+// Função para adicionar rota
+function adicionarRota() {
+    const container = document.getElementById('rotas-container');
+    const novaRota = document.createElement('div');
+    novaRota.className = 'input-group mb-2';
+    
+    const select = document.createElement('select');
+    select.className = 'form-select rota-select';
+    select.name = 'rota[]';
+    select.innerHTML = '<option value="">Selecione uma cidade</option>';
+    
+    // Adicionar cidades ao select
+    if (cidadesCache) {
+        cidadesCache.forEach(cidade => {
+            const option = document.createElement('option');
+            option.value = cidade.nome;
+            option.textContent = cidade.nome;
+            select.appendChild(option);
+        });
+    }
+    
+    const btnRemover = document.createElement('button');
+    btnRemover.type = 'button';
+    btnRemover.className = 'btn btn-danger';
+    btnRemover.innerHTML = '<i class="fas fa-minus"></i>';
+    btnRemover.onclick = function() {
+        novaRota.remove();
+    };
+    
+    novaRota.appendChild(select);
+    novaRota.appendChild(btnRemover);
+    container.appendChild(novaRota);
+}
+
+function calcularKmTotal() {
+    const kmInicial = parseFloat(document.querySelector('input[name="km_inicial"]').value) || 0;
+    const kmFinal = parseFloat(document.querySelector('input[name="km_final"]').value) || 0;
+    const kmTotal = kmFinal - kmInicial;
+    
+    if (kmTotal >= 0) {
+        document.querySelector('input[name="km_total"]').value = kmTotal;
+    } else {
+        alert('KM Final não pode ser menor que KM Inicial');
+        document.querySelector('input[name="km_final"]').value = '';
+        document.querySelector('input[name="km_total"]').value = '';
+    }
+}
+
+function calcularKmRodados() {
+    const kmInicial = parseFloat(document.querySelector('input[name="km_inicial_frete"]').value) || 0;
+    const kmFinal = parseFloat(document.querySelector('input[name="km_final_frete"]').value) || 0;
+    const kmRodados = kmFinal - kmInicial;
+    
+    if (kmRodados >= 0) {
+        document.querySelector('input[name="km_rodados"]').value = kmRodados;
+        // Recalcular preços quando km rodados mudar
+        calcularPrecos();
+    } else {
+        alert('KM Final não pode ser menor que KM Inicial');
+        document.querySelector('input[name="km_final_frete"]').value = '';
+        document.querySelector('input[name="km_rodados"]').value = '';
+    }
+}
+
+function calcularPrecos() {
+    const valorFrete = parseMoeda(document.querySelector('input[name="valor_frete"]').value);
+    const kmRodados = parseFloat(document.querySelector('input[name="km_rodados"]').value) || 0;
+    
+    // Calcular peso total dos romaneios
+    let pesoTotal = 0;
+    document.querySelectorAll('input[name="peso_bruto[]"]').forEach(input => {
+        pesoTotal += parseFloat(input.value) || 0;
+    });
+
+    if (kmRodados > 0) {
+        document.querySelector('input[name="preco_km"]').value = formatarMoeda(valorFrete / kmRodados);
+    } else {
+        document.querySelector('input[name="preco_km"]').value = 'R$ 0,00';
+    }
+    
+    if (pesoTotal > 0) {
+        document.querySelector('input[name="preco_kg"]').value = formatarMoeda(valorFrete / pesoTotal);
+    } else {
+        document.querySelector('input[name="preco_kg"]').value = 'R$ 0,00';
+    }
+}
+
+function calcularTotais() {
+    let totalEmbalagens = 0;
+    let totalPesoBruto = 0;
+    let totalValorLiquido = 0;
+    
+    // Calcular totais dos romaneios
+    document.querySelectorAll('.romaneio-item').forEach(romaneio => {
+        totalEmbalagens += parseInt(romaneio.querySelector('input[name="qtd_embalagens[]"]').value) || 0;
+        totalPesoBruto += parseFloat(romaneio.querySelector('input[name="peso_bruto[]"]').value) || 0;
+        totalValorLiquido += parseMoeda(romaneio.querySelector('input[name="valor_liquido[]"]').value);
+    });
+    
+    // Atualizar campos de totais
+    document.getElementById('total_embalagens').value = totalEmbalagens;
+    document.getElementById('total_peso_bruto').value = totalPesoBruto.toFixed(2);
+    document.getElementById('total_valor_liquido').value = formatarMoeda(totalValorLiquido);
+}
+
+function adicionarRomaneio() {
+    const romaneiosDiv = document.getElementById('romaneios');
+    const novoRomaneio = document.createElement('div');
+    novoRomaneio.className = 'romaneio-item mb-3 border p-3';
+    
+    novoRomaneio.innerHTML = `
+        <div class="row">
+            <div class="col-md-2">
+                <div class="mb-3">
+                    <label class="form-label">Nota</label>
+                    <input type="text" class="form-control nota" name="nota[]">
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="mb-3">
+                    <label class="form-label">Código Cliente</label>
+                    <div class="input-group">
+                        <select class="form-select codigo-cliente" name="cliente[]" required>
+                            <option value="">Selecione...</option>
+                            <!-- Será preenchido via JavaScript -->
+                        </select>
+                        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#novoClienteModal">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="mb-3">
+                    <label class="form-label">Condições Pagamento</label>
+                    <input type="text" class="form-control" name="condicoes_pagamento[]">
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="mb-3">
+                    <label class="form-label">Forma Pagamento</label>
+                    <select class="form-select" name="forma_pagamento[]">
+                        <option value="">Selecione...</option>
+                        <option value="Dinheiro">Dinheiro</option>
+                        <option value="Bonificação">Bonificação</option>
+                        <option value="Depósito em conta">Depósito em conta</option>
+                        <option value="Boleto">Boleto</option>
+                        <option value="PIX">PIX</option>
+                    </select>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="mb-3">
+                    <label class="form-label">Qtd. Embalagens</label>
+                    <input type="number" class="form-control" name="qtd_embalagens[]" onchange="calcularTotais()">
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="mb-3">
+                    <label class="form-label">Peso Bruto</label>
+                    <input type="number" step="0.01" class="form-control" name="peso_bruto[]" onchange="calcularTotais()">
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="mb-3">
+                    <label class="form-label">Valor Líquido</label>
+                    <input type="text" class="form-control" name="valor_liquido[]" value="R$ 0,00" onchange="calcularTotais()">
+                </div>
+            </div>
+            <div class="col-md-1">
+                <button type="button" class="btn btn-danger" onclick="this.closest('.romaneio-item').remove(); calcularTotais();">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        </div>
+    `;
+    
+    romaneiosDiv.appendChild(novoRomaneio);
+    carregarClientes();
+}
+
+function adicionarMovimento() {
+    const container = document.getElementById('movimentos');
+    const novoMovimento = document.createElement('div');
+    novoMovimento.className = 'movimento-item mt-3';
+    novoMovimento.innerHTML = `
+        <div class="row">
+            <div class="col-md-3">
+                <div class="mb-3">
+                    <label class="form-label">Código do Movimento</label>
+                    <select class="form-select codigo-movimento" name="codigo_movimento[]" onchange="atualizarTipoMovimento(this)">
+                        <option value="">Selecione um código</option>
+                        {% for codigo in codigos_movimento %}
+                        <option value="{{ codigo }}">{{ codigo }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="col-md-8">
+                <div class="mb-3">
+                    <label class="form-label">Tipo de Movimento</label>
+                    <input type="text" class="form-control tipo-movimento" name="tipo_movimento[]" readonly>
+                </div>
+            </div>
+            <div class="col-md-1">
+                <div class="mb-3 d-flex align-items-end">
+                    <button type="button" class="btn btn-danger" onclick="removerMovimento(this)">-</button>
+                </div>
+            </div>
+        </div>
+    `;
+    container.appendChild(novoMovimento);
+    movimentoCount++;
+}
+
+function removerMovimento(button) {
+    button.closest('.movimento-item').remove();
+}
+
+function atualizarTipoMovimento(select) {
+    const tiposMovimento = {
+        'T520': 'NFe DE SAÍDA - VENDA',
+        'T521': 'BONIFICAÇÃO',
+        'T820': 'TRANSPORTE PARA ARMAZENAGEM'
+    };
+    
+    const codigoSelecionado = select.value;
+    const tipoMovimentoInput = select.closest('.row').querySelector('.tipo-movimento');
+    
+    if (codigoSelecionado && tiposMovimento[codigoSelecionado]) {
+        tipoMovimentoInput.value = tiposMovimento[codigoSelecionado];
+    } else {
+        tipoMovimentoInput.value = '';
+    }
+}
+
+// Função para salvar novo veículo
+async function salvarNovoVeiculo() {
+    try {
+        const form = document.getElementById('formNovoVeiculo');
+        const formData = new FormData(form);
+        const transportadoraId = document.getElementById('transportadora-select').value;
+        
+        if (!transportadoraId) {
+            alert('Por favor, selecione uma transportadora primeiro.');
+            return;
+        }
+
+        // Converter FormData para objeto
+        const data = {
+            placa: formData.get('placa'),
+            modelo: formData.get('modelo'),
+            capacidade: formData.get('capacidade'),
+            tipo: formData.get('tipo')
+        };
+
+        // Validar campos obrigatórios
+        if (!data.placa || !data.modelo || !data.capacidade || !data.tipo) {
+            alert('Por favor, preencha todos os campos obrigatórios.');
+            return;
+        }
+
+        const response = await fetch(`/transportadora/api/transportadoras/${transportadoraId}/veiculos`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').content
+            },
+            body: JSON.stringify(data)
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Erro ao salvar veículo');
+        }
+
+        const result = await response.json();
+
+        // Fechar modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('novoVeiculoModal'));
+        modal.hide();
+
+        // Limpar formulário
+        form.reset();
+
+        // Recarregar lista de veículos
+        await carregarVeiculos(transportadoraId);
+
+        // Mostrar mensagem de sucesso
+        alert('Veículo cadastrado com sucesso!');
+
+    } catch (error) {
+        console.error('Erro ao salvar veículo:', error);
+        alert(error.message || 'Erro ao salvar veículo. Por favor, tente novamente.');
+    }
+}
+
+// Função para salvar nova transportadora
+async function salvarTransportadora() {
+    try {
+        const form = document.getElementById('formNovaTransportadora');
+        const formData = new FormData(form);
+        
+        // Converter FormData para objeto
+        const data = {
+            nome: formData.get('nome'),
+            cnpj: formData.get('cnpj'),
+            telefone: formData.get('telefone'),
+            email: formData.get('email')
+        };
+
+        // Validar campos obrigatórios
+        if (!data.nome || !data.cnpj) {
+            alert('Por favor, preencha todos os campos obrigatórios.');
+            return;
+        }
+
+        const response = await fetch('/transportadora/api/transportadoras', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').content
+            },
+            body: JSON.stringify(data)
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Erro ao salvar transportadora');
+        }
+
+        const result = await response.json();
+        console.log('Resposta do servidor:', result);
+
+        if (!result.transportadora) {
+            throw new Error('Resposta inválida do servidor');
+        }
+
+        // Fechar modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('novaTransportadoraModal'));
+        modal.hide();
+
+        // Limpar formulário
+        form.reset();
+
+        // Adicionar nova transportadora ao select
+        const select = document.getElementById('transportadora-select');
+        const option = document.createElement('option');
+        option.value = result.transportadora.id;
+        option.textContent = result.transportadora.nome;
+        select.appendChild(option);
+        
+        // Selecionar a nova transportadora
+        select.value = result.transportadora.id;
+        
+        // Disparar evento change para atualizar veículos
+        select.dispatchEvent(new Event('change'));
+
+        // Mostrar mensagem de sucesso
+        alert(result.message || 'Transportadora cadastrada com sucesso!');
+
+    } catch (error) {
+        console.error('Erro ao salvar transportadora:', error);
+        alert(error.message || 'Erro ao salvar transportadora. Por favor, tente novamente.');
+    }
+}
+
+// Função para salvar novo cliente
+async function salvarNovoCliente() {
+    try {
+        const codigo = document.getElementById('codigoCliente').value;
+        const nome = document.getElementById('nomeCliente').value;
+
+        if (!codigo || !nome) {
+            alert('Por favor, preencha todos os campos.');
+            return;
+        }
+
+        const response = await fetchWithCsrf('/novo_cliente', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                codigo: codigo,
+                nome: nome
+            })
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            // Atualizar o select de clientes
+            await carregarClientes();
+            
+            // Fechar o modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('novoClienteModal'));
+            modal.hide();
+            
+            // Limpar o formulário
+            document.getElementById('formNovoCliente').reset();
+            
+            // Mostrar mensagem de sucesso
+            alert('Cliente cadastrado com sucesso!');
+        } else {
+            throw new Error(result.error || 'Erro ao cadastrar cliente');
+        }
+    } catch (error) {
+        console.error('Erro ao salvar cliente:', error);
+        alert(error.message || 'Erro ao salvar cliente. Por favor, tente novamente.');
+    }
+}
+
+// Função para atualizar selects de clientes
+async function atualizarSelectsClientes() {
+    console.log('Atualizando selects de clientes...');
+    const selects = document.querySelectorAll('.codigo-cliente');
+    console.log('Encontrados', selects.length, 'selects de clientes');
+    
+    if (!clientesCache || !Array.isArray(clientesCache)) {
+        console.error('Cache de clientes inválido:', clientesCache);
+        return;
+    }
+    
+    selects.forEach((select, index) => {
+        console.log(`Atualizando select ${index + 1}...`);
+        const valorAtual = select.value;
+        select.innerHTML = '<option value="">Selecione um cliente</option>';
+        
+        try {
+            clientesCache.forEach(cliente => {
+                if (!cliente || !cliente.id || !cliente.codigo || !cliente.nome) {
+                    console.warn('Cliente com dados inválidos:', cliente);
+                    return;
+                }
+                
+                const option = document.createElement('option');
+                option.value = cliente.id;
+                option.textContent = `${cliente.codigo} - ${cliente.nome}`;
+                select.appendChild(option);
+            });
+            
+            if (valorAtual) {
+                select.value = valorAtual;
+            }
+            
+            console.log(`Select ${index + 1} atualizado com ${clientesCache.length} opções`);
+        } catch (error) {
+            console.error(`Erro ao atualizar select ${index + 1}:`, error);
+            select.innerHTML = '<option value="">Erro ao carregar clientes</option>';
+        }
+    });
+}
+
+// Função para atualizar selects de cidades
+async function atualizarSelectsCidades() {
+    const selects = document.querySelectorAll('.rota-select');
+    selects.forEach(select => {
+        const valorAtual = select.value;
+        select.innerHTML = '<option value="">Selecione uma cidade</option>';
+        
+        if (cidadesCache) {
+            cidadesCache.forEach(cidade => {
+                const option = document.createElement('option');
+                option.value = cidade.nome;
+                option.textContent = cidade.nome;
+                select.appendChild(option);
+            });
+        }
+        
+        if (valorAtual) {
+            select.value = valorAtual;
+        }
+    });
+}
+
+// Função para formatar valor em moeda brasileira
+function formatarMoeda(valor) {
+    if (!valor) return "R$ 0,00";
+    return new Intl.NumberFormat('pt-BR', {
+        style: 'currency',
+        currency: 'BRL'
+    }).format(valor);
+}
+
+// Função para converter string formatada em número
+function parseMoeda(valor) {
+    if (!valor) return 0;
+    return Number(valor.replace(/[^\d,-]/g, '').replace(',', '.'));
+}
+
+// Função para aplicar formatação monetária ao input
+function aplicarFormatacaoMoeda(input) {
+    input.addEventListener('focus', function(e) {
+        let valor = parseMoeda(e.target.value);
+        e.target.value = valor.toString();
+    });
+
+    input.addEventListener('blur', function(e) {
+        let valor = parseMoeda(e.target.value);
+        e.target.value = formatarMoeda(valor);
+    });
+}
+
+// Aplicar formatação aos campos monetários
+document.addEventListener('DOMContentLoaded', function() {
+    // Campos do Romaneio
+    document.querySelectorAll('input[name="valor_liquido[]"]').forEach(input => {
+        aplicarFormatacaoMoeda(input);
+    });
+    
+    // Campo de valor total
+    let totalValorLiquido = document.getElementById('total_valor_liquido');
+    if (totalValorLiquido) {
+        aplicarFormatacaoMoeda(totalValorLiquido);
+    }
+    
+    // Campos do Controle de Frete
+    const camposMonetarios = [
+        'valor_frete',
+        'abastecimento',
+        'impostos',
+        'adiantamento',
+        'entrega_extra',
+        'outros',
+        'preco_km',
+        'preco_kg'
+    ];
+    
+    camposMonetarios.forEach(campo => {
+        let input = document.querySelector(`input[name="${campo}"]`);
+        if (input) {
+            aplicarFormatacaoMoeda(input);
+        }
+    });
+});
+
+// Modificar função adicionarRomaneio para aplicar formatação aos novos campos
+const oldAdicionarRomaneio = window.adicionarRomaneio;
+window.adicionarRomaneio = function() {
+    oldAdicionarRomaneio();
+    // Aplicar formatação ao novo campo de valor líquido
+    const novosInputs = document.querySelectorAll('input[name="valor_liquido[]"]:not(.formatado)');
+    novosInputs.forEach(input => {
+        aplicarFormatacaoMoeda(input);
+        input.classList.add('formatado');
+    });
+};
+
+// Modificar função calcularTotais para usar formatação
+const oldCalcularTotais = window.calcularTotais;
+window.calcularTotais = function() {
+    oldCalcularTotais();
+    // Formatar o total após o cálculo
+    let totalValorLiquido = document.getElementById('total_valor_liquido');
+    if (totalValorLiquido && !totalValorLiquido.value.includes('R$')) {
+        totalValorLiquido.value = formatarMoeda(totalValorLiquido.value);
+    }
+};
+
+// Prevenir envio do formulário ao pressionar Enter
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelector('form').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
+            e.preventDefault();
+        }
+    });
+});
+
+</script>
+{% endblock %}
+
+{% block scripts %}
+<script>
+</script>
+{% endblock %}

@@ -1,0 +1,262 @@
+{% extends "index.html" %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <h2>Gerência - Carga #{{ carga.id }}</h2>
+    <form id="formGerencia" method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h4>Gerência</h4>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label class="form-label">Diárias</label>
+                            <input type="number" step="0.01" class="form-control" name="diarias" id="diarias" value="{{ carga.gerencia.diarias if carga.gerencia else 0 }}" onchange="calcularSaldoPagar()" required>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label class="form-label">Valor Total</label>
+                            <input type="number" step="0.01" class="form-control" name="valor_total" id="valor_total" readonly>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label class="form-label">Deduções (Despesas)</label>
+                            <input type="number" step="0.01" class="form-control" name="deducoes" id="deducoes" readonly>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label class="form-label">Valor a Pagar</label>
+                            <input type="number" step="0.01" class="form-control" name="valor_a_pagar" id="valor_a_pagar" readonly>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">Observações</label>
+                            <textarea class="form-control" name="observacoes" rows="3">{{ carga.gerencia.observacoes if carga.gerencia else '' }}</textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="row mt-4">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalAssinatura">
+                                <i class="fas fa-signature"></i> Assinar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- Modal Assinatura -->
+<div class="modal fade" id="modalAssinatura" tabindex="-1" aria-labelledby="modalAssinaturaLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalAssinaturaLabel">Confirmar Assinatura</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="nome_assinatura" class="form-label">Nome Completo</label>
+                    <input type="text" class="form-control" id="nome_assinatura" required>
+                </div>
+                <div class="mb-3">
+                    <label for="senha" class="form-label">Digite sua senha para confirmar</label>
+                    <input type="password" class="form-control" id="senha" required>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="confirmarAssinatura()">Confirmar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function getCsrfToken() {
+    return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+}
+
+function calcularSaldoPagar() {
+    // Valores do controle de frete
+    const valorFrete = parseFloat('{{ carga.controle_frete.valor_frete or 0 }}') || 0;
+    const impostos = parseFloat('{{ carga.controle_frete.impostos or 0 }}') || 0;
+    const entregaExtra = parseFloat('{{ carga.controle_frete.entrega_extra or 0 }}') || 0;
+    const adiantamento = parseFloat('{{ carga.controle_frete.adiantamento or 0 }}') || 0;
+    const abastecimento = parseFloat('{{ carga.controle_frete.abastecimento or 0 }}') || 0;
+    const outros = parseFloat('{{ carga.controle_frete.outros or 0 }}') || 0;
+    
+    // Valor da descarga da logística
+    const descarga = parseFloat('{{ carga.logistica.descarga or 0 }}') || 0;
+    
+    // Valor das diárias
+    const diarias = parseFloat(document.getElementById('diarias').value) || 0;
+    
+    // Valor total das despesas (deduções)
+    const deducoes = parseFloat('{{ total_despesas or 0 }}') || 0;
+    
+    // Cálculo do valor total
+    const valorTotal = valorFrete + impostos + entregaExtra + descarga + diarias - (adiantamento + abastecimento + outros);
+    
+    // Cálculo do valor a pagar
+    const valorAPagar = valorTotal - deducoes;
+    
+    // Atualizar os campos
+    document.getElementById('valor_total').value = valorTotal.toFixed(2);
+    document.getElementById('deducoes').value = deducoes.toFixed(2);
+    document.getElementById('valor_a_pagar').value = valorAPagar.toFixed(2);
+}
+
+// Função para atualizar valores em tempo real
+async function atualizarValores() {
+    try {
+        const response = await fetch(`/api/carga/{{ carga.id }}/valores`);
+        const data = await response.json();
+        
+        if (data.success) {
+            // Atualizar o campo de deduções
+            document.getElementById('deducoes').value = data.total_despesas.toFixed(2);
+            
+            // Recalcular o valor a pagar
+            calcularSaldoPagar();
+        }
+    } catch (error) {
+        console.error('Erro ao atualizar valores:', error);
+    }
+}
+
+// Atualizar valores a cada 30 segundos
+setInterval(atualizarValores, 30000);
+
+// Inicialização
+document.addEventListener('DOMContentLoaded', function() {
+    calcularSaldoPagar();
+    atualizarValores();
+});
+
+function confirmarAssinatura() {
+    const senha = document.getElementById('senha').value;
+    const nome = document.getElementById('nome_assinatura').value;
+    
+    if (!senha || !nome) {
+        alert('Por favor, preencha todos os campos.');
+        return;
+    }
+    
+    fetch('/verificar_senha', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': getCsrfToken()
+        },
+        body: JSON.stringify({
+            senha: senha
+        }),
+        credentials: 'same-origin'
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(data => {
+                throw new Error(data.error || 'Erro na verificação de senha');
+            });
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            // Adicionar campos ocultos ao formulário
+            const form = document.getElementById('formGerencia');
+            
+            // Campo de assinatura
+            let inputAssinatura = document.createElement('input');
+            inputAssinatura.type = 'hidden';
+            inputAssinatura.name = 'assinatura';
+            inputAssinatura.value = 'X';  // Usando X como assinatura
+            form.appendChild(inputAssinatura);
+            
+            // Campo de nome da assinatura
+            let inputNomeAssinatura = document.createElement('input');
+            inputNomeAssinatura.type = 'hidden';
+            inputNomeAssinatura.name = 'nome_assinatura';
+            inputNomeAssinatura.value = nome;  // Usando o nome digitado
+            form.appendChild(inputNomeAssinatura);
+            
+            // Campo de data
+            let inputData = document.createElement('input');
+            inputData.type = 'hidden';
+            inputData.name = 'data_assinatura';
+            inputData.value = new Date().toISOString();
+            form.appendChild(inputData);
+            
+            // Fechar modal
+            var modal = bootstrap.Modal.getInstance(document.getElementById('modalAssinatura'));
+            modal.hide();
+            
+            // Submeter o formulário
+            form.submit();
+        } else {
+            alert('Senha incorreta! Por favor, tente novamente.');
+        }
+    })
+    .catch(error => {
+        console.error('Erro:', error);
+        alert(error.message);
+    });
+}
+
+document.getElementById('formGerencia').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    
+    // Adiciona o token CSRF
+    formData.append('csrf_token', document.querySelector('meta[name="csrf-token"]').content);
+    
+    console.log("Dados do formulário:");
+    for (let pair of formData.entries()) {
+        console.log(pair[0] + ': ' + pair[1]);
+    }
+    
+    fetch(window.location.href, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(data => {
+                throw new Error(data.error || 'Erro ao salvar dados da gerência');
+            });
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.error) {
+            throw new Error(data.error);
+        }
+        if (data.redirect) {
+            window.location.href = data.redirect;
+        }
+    })
+    .catch(error => {
+        console.error('Erro:', error);
+        alert('Erro ao salvar dados da gerência: ' + error.message);
+    });
+});
+</script>
+{% endblock %}

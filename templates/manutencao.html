@@ -1,0 +1,286 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Controle de Manutenção Preventiva</h2>
+        {% if current_user.role in ['logistica', 'admin'] %}
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalManutencao">
+            Nova Manutenção
+        </button>
+        {% endif %}
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Veículo</th>
+                            <th>Tipo</th>
+                            <th>Data Prevista</th>
+                            <th>KM Previsto</th>
+                            <th>Status</th>
+                            <th>Prioridade</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for manutencao in manutencoes %}
+                        <tr>
+                            <td>{{ manutencao.veiculo.placa }}</td>
+                            <td>{{ manutencao.tipo_manutencao }}</td>
+                            <td>{{ manutencao.data_prevista.strftime('%d/%m/%Y') }}</td>
+                            <td>{{ manutencao.km_previsto or '-' }}</td>
+                            <td>
+                                <span class="badge bg-{{ 'success' if manutencao.status == 'concluida' 
+                                    else 'warning' if manutencao.status == 'em_andamento'
+                                    else 'danger' if manutencao.status == 'atrasada'
+                                    else 'info' }}">
+                                    {{ manutencao.status }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="badge bg-{{ 'danger' if manutencao.prioridade == 'urgente'
+                                    else 'warning' if manutencao.prioridade == 'alta'
+                                    else 'info' if manutencao.prioridade == 'normal'
+                                    else 'secondary' }}">
+                                    {{ manutencao.prioridade }}
+                                </span>
+                            </td>
+                            <td>
+                                <button class="btn btn-info btn-sm" onclick="verDetalhes({{ manutencao.id }})">
+                                    Detalhes
+                                </button>
+                                {% if current_user.role in ['logistica', 'admin'] %}
+                                <button class="btn btn-warning btn-sm" onclick="editarManutencao({{ manutencao.id }})">
+                                    Editar
+                                </button>
+                                {% if manutencao.status in ['pendente', 'atrasada'] %}
+                                <button class="btn btn-danger btn-sm" onclick="excluirManutencao({{ manutencao.id }})">
+                                    Excluir
+                                </button>
+                                {% endif %}
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Manutenção -->
+<div class="modal fade" id="modalManutencao" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Manutenção Preventiva</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formManutencao">
+                    <input type="hidden" name="id">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Veículo</label>
+                            <select class="form-select" name="veiculo_id" required>
+                                {% for veiculo in veiculos %}
+                                <option value="{{ veiculo.id }}">{{ veiculo.placa }} - {{ veiculo.modelo }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Tipo de Manutenção</label>
+                            <input type="text" class="form-control" name="tipo_manutencao" required>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Data Prevista</label>
+                            <input type="date" class="form-control" name="data_prevista" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">KM Previsto</label>
+                            <input type="number" class="form-control" name="km_previsto">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Descrição</label>
+                        <textarea class="form-control" name="descricao" rows="3" required></textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Prioridade</label>
+                            <select class="form-select" name="prioridade">
+                                <option value="baixa">Baixa</option>
+                                <option value="normal" selected>Normal</option>
+                                <option value="alta">Alta</option>
+                                <option value="urgente">Urgente</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Status</label>
+                            <select class="form-select" name="status">
+                                <option value="pendente" selected>Pendente</option>
+                                <option value="em_andamento">Em Andamento</option>
+                                <option value="concluida">Concluída</option>
+                            </select>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="salvarManutencao()">Salvar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Detalhes -->
+<div class="modal fade" id="modalDetalhes" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Detalhes da Manutenção</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="detalhesManutencao">
+                <!-- Preenchido via JavaScript -->
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let manutencaoAtual = null;
+
+function salvarManutencao() {
+    const form = document.getElementById('formManutencao');
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData);
+    
+    const method = data.id ? 'PUT' : 'POST';
+    const url = data.id ? `/manutencoes/${data.id}` : '/manutencoes/criar';
+    
+    fetch(url, {
+        method: method,
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert(data.error);
+        } else {
+            alert(data.message);
+            location.reload();
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Erro ao salvar manutenção');
+    });
+}
+
+function verDetalhes(id) {
+    fetch(`/manutencoes/${id}`)
+    .then(response => response.json())
+    .then(manutencao => {
+        const detalhes = document.getElementById('detalhesManutencao');
+        detalhes.innerHTML = `
+            <dl class="row">
+                <dt class="col-sm-4">Veículo:</dt>
+                <dd class="col-sm-8">${manutencao.veiculo}</dd>
+                
+                <dt class="col-sm-4">Tipo:</dt>
+                <dd class="col-sm-8">${manutencao.tipo_manutencao}</dd>
+                
+                <dt class="col-sm-4">Data Prevista:</dt>
+                <dd class="col-sm-8">${manutencao.data_prevista}</dd>
+                
+                <dt class="col-sm-4">Status:</dt>
+                <dd class="col-sm-8">${manutencao.status}</dd>
+                
+                <dt class="col-sm-4">Descrição:</dt>
+                <dd class="col-sm-8">${manutencao.descricao}</dd>
+                
+                <dt class="col-sm-4">Custo Total:</dt>
+                <dd class="col-sm-8">R$ ${manutencao.custo_total || 0}</dd>
+                
+                <dt class="col-sm-4">Mecânico:</dt>
+                <dd class="col-sm-8">${manutencao.mecanico_responsavel || '-'}</dd>
+                
+                <dt class="col-sm-4">Oficina:</dt>
+                <dd class="col-sm-8">${manutencao.oficina || '-'}</dd>
+                
+                <dt class="col-sm-4">Observações:</dt>
+                <dd class="col-sm-8">${manutencao.observacoes || '-'}</dd>
+            </dl>
+        `;
+        
+        new bootstrap.Modal(document.getElementById('modalDetalhes')).show();
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Erro ao carregar detalhes');
+    });
+}
+
+function editarManutencao(id) {
+    fetch(`/manutencoes/${id}`)
+    .then(response => response.json())
+    .then(manutencao => {
+        manutencaoAtual = manutencao;
+        const form = document.getElementById('formManutencao');
+        
+        // Preencher o formulário
+        form.id.value = manutencao.id;
+        form.veiculo_id.value = manutencao.veiculo_id;
+        form.tipo_manutencao.value = manutencao.tipo_manutencao;
+        form.data_prevista.value = manutencao.data_prevista;
+        form.km_previsto.value = manutencao.km_previsto || '';
+        form.descricao.value = manutencao.descricao;
+        form.prioridade.value = manutencao.prioridade;
+        form.status.value = manutencao.status;
+        
+        new bootstrap.Modal(document.getElementById('modalManutencao')).show();
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Erro ao carregar manutenção');
+    });
+}
+
+function excluirManutencao(id) {
+    if (!confirm('Tem certeza que deseja excluir esta manutenção?')) {
+        return;
+    }
+    
+    fetch(`/manutencoes/${id}`, {
+        method: 'DELETE'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert(data.error);
+        } else {
+            alert(data.message);
+            location.reload();
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Erro ao excluir manutenção');
+    });
+}
+</script>
+{% endblock %}

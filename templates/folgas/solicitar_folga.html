@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header">
+                    <h4>Solicitar Folga</h4>
+                </div>
+                <div class="card-body">
+                    <div id="mensagens"></div>
+                    
+                    <form id="formSolicitarFolga">
+                        <div class="mb-3">
+                            <label for="data_inicio" class="form-label">Data de Início</label>
+                            <input type="date" class="form-control" id="data_inicio" name="data_inicio" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="data_fim" class="form-label">Data de Fim</label>
+                            <input type="date" class="form-control" id="data_fim" name="data_fim" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="motivo" class="form-label">Motivo</label>
+                            <textarea class="form-control" id="motivo" name="motivo" rows="3" required></textarea>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">Solicitar Folga</button>
+                            <a href="{{ url_for('folga.folgas') }}" class="btn btn-secondary">Voltar</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('formSolicitarFolga').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const data = {
+        data_inicio: document.getElementById('data_inicio').value,
+        data_fim: document.getElementById('data_fim').value,
+        motivo: document.getElementById('motivo').value
+    };
+    
+    fetch('{{ url_for("folgas.solicitar_folga") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const mensagens = document.getElementById('mensagens');
+            mensagens.innerHTML = `
+                <div class="alert alert-success">
+                    ${data.message}
+                </div>
+            `;
+            setTimeout(() => {
+                window.location.href = '{{ url_for("folga.folgas") }}';
+            }, 2000);
+        } else {
+            throw new Error(data.error || 'Erro ao solicitar folga');
+        }
+    })
+    .catch(error => {
+        const mensagens = document.getElementById('mensagens');
+        mensagens.innerHTML = `
+            <div class="alert alert-danger">
+                ${error.message}
+            </div>
+        `;
+    });
+});
+</script>
+{% endblock %}

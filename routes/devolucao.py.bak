@@ -1,0 +1,230 @@
+from flask import Blueprint, render_template, request, jsonify, current_app
+from flask_login import login_required, current_user
+from models.devolucao import Devolucao
+from models.transportadora import Transportadora
+from models.carga import Carga
+from datetime import datetime
+from extensions import db
+import traceback
+
+devolucao_bp = Blueprint('devolucao', __name__, url_prefix='/devolucao')
+
+@devolucao_bp.route('/')
+@login_required
+def index():
+    transportadoras = Transportadora.query.all()
+    return render_template('devolucao.html', transportadoras=transportadoras)
+
+@devolucao_bp.route('/api/devolucoes', methods=['GET'])
+@login_required
+def get_devolucoes():
+    try:
+        devolucoes = Devolucao.query.all()
+        return jsonify([{
+            'id': d.id,
+            'numero_carga': d.numero_carga,
+            'numero_nfe': d.numero_nfe,
+            'data_devolucao': d.data_devolucao.isoformat() if d.data_devolucao else None,
+            'tipo_movimento': d.tipo_movimento,
+            'qtd_embalagens': d.qtd_embalagens,
+            'peso_devolvido': d.peso_devolvido,
+            'valor_mercadoria': d.valor_mercadoria,
+            'tipo_mercadoria': d.tipo_mercadoria,
+            'aprovado': d.aprovado,
+            'data_aprovacao': d.data_aprovacao.isoformat() if d.data_aprovacao else None,
+            'aprovado_por': d.aprovado_por,
+            'observacoes': d.observacoes
+        } for d in devolucoes])
+    except Exception as e:
+        current_app.logger.error(f'Erro ao listar devoluções: {str(e)}')
+        return jsonify({'error': 'Erro ao listar devoluções'}), 500
+
+@devolucao_bp.route('/api/devolucoes', methods=['POST'])
+@login_required
+def create_devolucao():
+    try:
+        data = request.get_json()
+        current_app.logger.info(f'Dados recebidos: {data}')
+        
+        if not data:
+            current_app.logger.error('Nenhum dado recebido no request')
+            return jsonify({'error': 'Nenhum dado recebido'}), 400
+        
+        # Validar dados obrigatórios
+        required_fields = ['numero_carga', 'numero_nfe', 'tipo_movimento', 'transportadora_id', 
+                         'peso_devolvido', 'valor_mercadoria', 'tipo_mercadoria']
+        for field in required_fields:
+            if field not in data or data[field] is None or data[field] == '':
+                current_app.logger.error(f'Campo obrigatório não informado ou vazio: {field}')
+                return jsonify({'error': f'Campo {field} é obrigatório'}), 400
+        
+        # Validar valores numéricos
+        try:
+            transportadora_id = int(data['transportadora_id'])
+            peso_devolvido = float(data['peso_devolvido'])
+            valor_mercadoria = float(data['valor_mercadoria'])
+            qtd_embalagens = int(data.get('qtd_embalagens', 0))
+            
+            if peso_devolvido <= 0:
+                return jsonify({'error': 'Peso devolvido deve ser maior que zero'}), 400
+            if valor_mercadoria <= 0:
+                return jsonify({'error': 'Valor da mercadoria deve ser maior que zero'}), 400
+            if qtd_embalagens < 0:
+                return jsonify({'error': 'Quantidade de embalagens não pode ser negativa'}), 400
+                
+        except (ValueError, TypeError) as e:
+            current_app.logger.error(f'Erro na conversão de valores numéricos: {str(e)}')
+            return jsonify({'error': 'Valores numéricos inválidos'}), 400
+        
+        # Validar se a carga existe
+        carga = Carga.query.filter_by(carga=data['numero_carga']).first()
+        if not carga:
+            current_app.logger.error(f'Carga não encontrada: {data["numero_carga"]}')
+            return jsonify({'error': 'Carga não encontrada'}), 404
+        
+        # Validar se a transportadora existe
+        transportadora = Transportadora.query.get(transportadora_id)
+        if not transportadora:
+            current_app.logger.error(f'Transportadora não encontrada: {transportadora_id}')
+            return jsonify({'error': 'Transportadora não encontrada'}), 404
+        
+        # Criar a devolução
+        devolucao = Devolucao(
+            numero_carga=data['numero_carga'],
+            numero_nfe=data['numero_nfe'],
+            data_devolucao=datetime.now(),
+            tipo_movimento=data['tipo_movimento'],
+            transportadora_id=transportadora_id,
+            qtd_embalagens=qtd_embalagens,
+            peso_devolvido=peso_devolvido,
+            valor_mercadoria=valor_mercadoria,
+            tipo_mercadoria=data['tipo_mercadoria'],
+            observacoes=data.get('observacoes')
+        )
+        
+        current_app.logger.info(f'Tentando criar devolução: {devolucao.__dict__}')
+        
+        db.session.add(devolucao)
+        db.session.commit()
+        
+        current_app.logger.info(f'Devolução criada com sucesso: {devolucao.id}')
+        return jsonify({'message': 'Devolução registrada com sucesso', 'id': devolucao.id})
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f'Erro ao registrar devolução: {str(e)}')
+        current_app.logger.error(f'Traceback: {traceback.format_exc()}')
+        return jsonify({'error': f'Erro ao registrar devolução: {str(e)}'}), 500
+
+@devolucao_bp.route('/api/cargas/<numero_carga>/totais', methods=['GET'])
+@login_required
+def get_totais_carga(numero_carga):
+    try:
+        # Buscar a carga
+        carga = Carga.query.filter_by(carga=numero_carga).first()
+        if not carga:
+            return jsonify({'error': 'Carga não encontrada'}), 404
+            
+        # Calcular totais dos romaneios
+        total_embalagens = 0
+        peso_total = 0
+        valor_total = 0
+        
+        for romaneio in carga.romaneios:
+            if romaneio.quantidade:
+                total_embalagens += int(romaneio.quantidade)
+            if romaneio.peso_bruto:
+                peso_total += float(romaneio.peso_bruto)
+            if romaneio.valor:
+                valor_total += float(romaneio.valor)
+                
+        # Subtrair devoluções
+        devolucoes = Devolucao.query.filter_by(numero_carga=numero_carga, aprovado=True).all()
+        for devolucao in devolucoes:
+            if devolucao.qtd_embalagens:
+                total_embalagens -= int(devolucao.qtd_embalagens)
+            if devolucao.peso_devolvido:
+                peso_total -= float(devolucao.peso_devolvido)
+            if devolucao.valor_mercadoria:
+                valor_total -= float(devolucao.valor_mercadoria)
+                
+        return jsonify({
+            'total_embalagens': total_embalagens,
+            'peso_total': round(peso_total, 2),
+            'valor_total': round(valor_total, 2)
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f'Erro ao buscar totais da carga: {str(e)}')
+        return jsonify({'error': 'Erro ao buscar totais da carga'}), 500
+
+@devolucao_bp.route('/api/devolucoes/<int:id>/aprovar', methods=['POST'])
+@login_required
+def aprovar_devolucao(id):
+    try:
+        current_app.logger.info(f'Tentando aprovar devolução {id}. Usuário: {current_user.username}, Role: {current_user.role}')
+        
+        if current_user.role != 'gerencia':
+            current_app.logger.warning(f'Usuário {current_user.username} sem permissão para aprovar devoluções')
+            return jsonify({'error': 'Usuário não tem permissão para aprovar devoluções'}), 403
+        
+        devolucao = Devolucao.query.get_or_404(id)
+        current_app.logger.info(f'Devolução encontrada: {devolucao.__dict__}')
+        
+        if devolucao.aprovado:
+            current_app.logger.warning(f'Devolução {id} já está aprovada')
+            return jsonify({'error': 'Devolução já está aprovada'}), 400
+        
+        # Atualizar a devolução
+        devolucao.aprovado = True
+        devolucao.data_aprovacao = datetime.now()
+        devolucao.aprovado_por = current_user.username
+        
+        # Buscar e validar a carga
+        carga = Carga.query.filter_by(carga=devolucao.numero_carga).first()
+        if not carga:
+            current_app.logger.error(f'Carga {devolucao.numero_carga} não encontrada')
+            return jsonify({'error': f'Carga {devolucao.numero_carga} não encontrada'}), 404
+            
+        current_app.logger.info(f'Carga encontrada: {carga.__dict__}')
+        
+        # Atualizar a carga com validações
+        try:
+            if carga.peso_total is not None and devolucao.peso_devolvido is not None:
+                novo_peso = float(carga.peso_total) - float(devolucao.peso_devolvido)
+                if novo_peso < 0:
+                    raise ValueError(f'Peso total não pode ficar negativo: {novo_peso}')
+                carga.peso_total = novo_peso
+                current_app.logger.info(f'Peso atualizado: {carga.peso_total}')
+                
+            if hasattr(carga, 'valor_mercadoria') and carga.valor_mercadoria is not None and devolucao.valor_mercadoria is not None:
+                novo_valor = float(carga.valor_mercadoria) - float(devolucao.valor_mercadoria)
+                if novo_valor < 0:
+                    raise ValueError(f'Valor da mercadoria não pode ficar negativo: {novo_valor}')
+                carga.valor_mercadoria = novo_valor
+                current_app.logger.info(f'Valor atualizado: {carga.valor_mercadoria}')
+            
+            current_app.logger.info('Valores atualizados com sucesso')
+            
+        except ValueError as ve:
+            current_app.logger.error(f'Erro de validação: {str(ve)}')
+            return jsonify({'error': str(ve)}), 400
+        except Exception as e:
+            current_app.logger.error(f'Erro ao atualizar valores: {str(e)}')
+            raise
+        
+        try:
+            db.session.commit()
+            current_app.logger.info('Devolução aprovada com sucesso')
+            return jsonify({'message': 'Devolução aprovada com sucesso'})
+            
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f'Erro ao salvar no banco: {str(e)}')
+            raise
+            
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f'Erro ao aprovar devolução: {str(e)}')
+        current_app.logger.error(f'Traceback: {traceback.format_exc()}')
+        return jsonify({'error': f'Erro ao aprovar devolução: {str(e)}'}), 500

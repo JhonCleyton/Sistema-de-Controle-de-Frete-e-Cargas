@@ -1,0 +1,190 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Gestão de Folgas</h2>
+        {% if current_user.role in ['motorista', 'logistica'] %}
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalSolicitarFolga">
+            Solicitar Folga
+        </button>
+        {% endif %}
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Motorista</th>
+                            <th>Data Início</th>
+                            <th>Data Fim</th>
+                            <th>Motivo</th>
+                            <th>Status</th>
+                            <th>Aprovado Por</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for folga in folgas %}
+                        <tr>
+                            <td>{{ folga.motorista.nome }}</td>
+                            <td>{{ folga.data_inicio.strftime('%d/%m/%Y %H:%M') }}</td>
+                            <td>{{ folga.data_fim.strftime('%d/%m/%Y %H:%M') }}</td>
+                            <td>{{ folga.motivo }}</td>
+                            <td>
+                                <span class="badge bg-{{ 'success' if folga.status == 'aprovada' else 'danger' if folga.status == 'rejeitada' else 'warning' }}">
+                                    {{ folga.status }}
+                                </span>
+                            </td>
+                            <td>{{ folga.aprovada_por.nome if folga.aprovada_por else '-' }}</td>
+                            <td>
+                                {% if current_user.role in ['gerencia', 'admin'] and folga.status == 'pendente' %}
+                                <button class="btn btn-success btn-sm" onclick="avaliarFolga({{ folga.id }}, 'aprovada')">
+                                    Aprovar
+                                </button>
+                                <button class="btn btn-danger btn-sm" onclick="avaliarFolga({{ folga.id }}, 'rejeitada')">
+                                    Rejeitar
+                                </button>
+                                {% endif %}
+                                
+                                {% if folga.status == 'pendente' and (folga.motorista_id == current_user.id or current_user.role in ['gerencia', 'admin']) %}
+                                <button class="btn btn-danger btn-sm" onclick="cancelarFolga({{ folga.id }})">
+                                    Cancelar
+                                </button>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Solicitar Folga -->
+<div class="modal fade" id="modalSolicitarFolga" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Solicitar Folga</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formSolicitarFolga">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="mb-3">
+                        <label class="form-label">Data Início</label>
+                        <input type="datetime-local" class="form-control" name="data_inicio" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Data Fim</label>
+                        <input type="datetime-local" class="form-control" name="data_fim" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Motivo</label>
+                        <input type="text" class="form-control" name="motivo" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Observações</label>
+                        <textarea class="form-control" name="observacoes" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="solicitarFolga()">Solicitar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function solicitarFolga() {
+    const form = document.getElementById('formSolicitarFolga');
+    const formData = new FormData(form);
+    
+    fetch('/folgas/solicitar', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': formData.get('csrf_token')
+        },
+        body: JSON.stringify(Object.fromEntries(formData))
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert(data.error);
+        } else {
+            alert(data.message);
+            location.reload();
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Erro ao solicitar folga');
+    });
+}
+
+function avaliarFolga(folgaId, status) {
+    const observacoes = prompt('Observações (opcional):');
+    const csrf_token = document.querySelector('input[name="csrf_token"]').value;
+    
+    fetch(`/folgas/${folgaId}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrf_token
+        },
+        body: JSON.stringify({ status, observacoes })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert(data.error);
+        } else {
+            alert(data.message);
+            location.reload();
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Erro ao avaliar folga');
+    });
+}
+
+function cancelarFolga(folgaId) {
+    if (!confirm('Tem certeza que deseja cancelar esta solicitação de folga?')) {
+        return;
+    }
+    
+    const csrf_token = document.querySelector('input[name="csrf_token"]').value;
+    
+    fetch(`/folgas/${folgaId}`, {
+        method: 'DELETE',
+        headers: {
+            'X-CSRFToken': csrf_token
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert(data.error);
+        } else {
+            alert(data.message);
+            location.reload();
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Erro ao cancelar folga');
+    });
+}
+</script>
+{% endblock %}

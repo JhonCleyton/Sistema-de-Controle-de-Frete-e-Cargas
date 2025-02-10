@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">Adicionar Novo Veículo</h4>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('sislog.adicionar_veiculo') }}">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="placa" class="form-label">Placa*</label>
+                                <input type="text" class="form-control" id="placa" name="placa" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="modelo" class="form-label">Modelo*</label>
+                                <input type="text" class="form-control" id="modelo" name="modelo" required>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="marca" class="form-label">Marca*</label>
+                                <input type="text" class="form-control" id="marca" name="marca" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="ano" class="form-label">Ano*</label>
+                                <input type="number" class="form-control" id="ano" name="ano" min="1900" max="2100" required>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="capacidade" class="form-label">Capacidade (kg)*</label>
+                                <input type="number" class="form-control" id="capacidade" name="capacidade" min="0" step="0.01" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="tipo" class="form-label">Tipo*</label>
+                                <select class="form-select" id="tipo" name="tipo" required>
+                                    <option value="">Selecione o tipo</option>
+                                    <option value="caminhao">Caminhão</option>
+                                    <option value="carreta">Carreta</option>
+                                    <option value="van">Van</option>
+                                    <option value="utilitario">Utilitário</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="status" class="form-label">Status*</label>
+                                <select class="form-select" id="status" name="status" required>
+                                    <option value="">Selecione o status</option>
+                                    <option value="disponivel">Disponível</option>
+                                    <option value="em_viagem">Em Viagem</option>
+                                    <option value="em_manutencao">Em Manutenção</option>
+                                    <option value="inativo">Inativo</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{{ url_for('sislog.veiculos') }}" class="btn btn-secondary me-md-2">
+                                <i class="fas fa-times"></i> Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Salvar
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Formatar placa automaticamente
+    const placaInput = document.getElementById('placa');
+    placaInput.addEventListener('input', function(e) {
+        let value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+        if (value.length > 7) value = value.slice(0, 7);
+        if (value.length > 3) {
+            value = value.slice(0, 3) + '-' + value.slice(3);
+        }
+        e.target.value = value;
+    });
+    
+    // Definir ano máximo como o ano atual
+    const anoInput = document.getElementById('ano');
+    const anoAtual = new Date().getFullYear();
+    anoInput.max = anoAtual;
+    anoInput.value = anoAtual;
+});
+</script>
+{% endblock %}

@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+
+{% block title %}Motoristas{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Gerenciamento de Motoristas</h2>
+        {% if current_user.role in ['gerencia', 'logistica'] %}
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalMotorista">
+            Adicionar Motorista
+        </button>
+        {% endif %}
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Nome</th>
+                    <th>CNH</th>
+                    <th>Categoria</th>
+                    <th>Validade</th>
+                    <th>Status</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody id="tabelaMotoristas">
+                {% for motorista in motoristas %}
+                <tr>
+                    <td>{{ motorista.nome }}</td>
+                    <td>{{ motorista.cnh }}</td>
+                    <td>{{ motorista.categoria_cnh or '-' }}</td>
+                    <td>{{ motorista.validade_cnh.strftime('%d/%m/%Y') if motorista.validade_cnh else '-' }}</td>
+                    <td>{{ motorista.status }}</td>
+                    <td>
+                        {% if current_user.role in ['gerencia', 'logistica'] %}
+                        <button class="btn btn-sm btn-primary" onclick="editarMotorista({{ motorista.id }}, '{{ motorista.nome }}', '{{ motorista.cnh }}', '{{ motorista.categoria_cnh or '' }}', '{{ motorista.validade_cnh.strftime('%Y-%m-%d') if motorista.validade_cnh else '' }}', '{{ motorista.cpf or '' }}', '{{ motorista.telefone or '' }}', '{{ motorista.endereco or '' }}')">
+                            Editar
+                        </button>
+                        <button class="btn btn-sm btn-danger" onclick="excluirMotorista({{ motorista.id }})">
+                            Excluir
+                        </button>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal Motorista -->
+<div class="modal fade" id="modalMotorista" tabindex="-1" aria-labelledby="modalMotoristaLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalMotoristaLabel">Adicionar Motorista</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formMotorista" onsubmit="salvarMotorista(event)">
+                    <input type="hidden" id="motorista_id">
+                    <div class="mb-3">
+                        <label for="nome" class="form-label">Nome Completo</label>
+                        <input type="text" class="form-control" id="nome" name="nome" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="cnh" class="form-label">CNH</label>
+                        <input type="text" class="form-control" id="cnh" name="cnh" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="categoria_cnh" class="form-label">Categoria CNH</label>
+                        <select class="form-select" id="categoria_cnh" name="categoria_cnh">
+                            <option value="">Selecione...</option>
+                            <option value="A">A</option>
+                            <option value="B">B</option>
+                            <option value="C">C</option>
+                            <option value="D">D</option>
+                            <option value="E">E</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="validade_cnh" class="form-label">Validade CNH</label>
+                        <input type="date" class="form-control" id="validade_cnh" name="validade_cnh">
+                    </div>
+                    <div class="mb-3">
+                        <label for="cpf" class="form-label">CPF</label>
+                        <input type="text" class="form-control" id="cpf" name="cpf">
+                    </div>
+                    <div class="mb-3">
+                        <label for="telefone" class="form-label">Telefone</label>
+                        <input type="text" class="form-control" id="telefone" name="telefone">
+                    </div>
+                    <div class="mb-3">
+                        <label for="endereco" class="form-label">Endereço</label>
+                        <input type="text" class="form-control" id="endereco" name="endereco">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Salvar</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function salvarMotorista(event) {
+    event.preventDefault();
+    
+    const formData = {
+        nome: document.getElementById('nome').value,
+        cnh: document.getElementById('cnh').value,
+        categoria_cnh: document.getElementById('categoria_cnh').value,
+        validade_cnh: document.getElementById('validade_cnh').value,
+        cpf: document.getElementById('cpf').value,
+        telefone: document.getElementById('telefone').value,
+        endereco: document.getElementById('endereco').value
+    };
+    
+    const motorista_id = document.getElementById('motorista_id').value;
+    const url = motorista_id ? `/motoristas/${motorista_id}/editar` : '/motoristas/adicionar';
+    
+    fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify(formData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert(data.error);
+        } else {
+            alert(data.message);
+            window.location.reload();
+        }
+    })
+    .catch(error => {
+        console.error('Erro:', error);
+        alert('Erro ao salvar motorista');
+    });
+}
+
+function editarMotorista(id, nome, cnh, categoria_cnh, validade_cnh, cpf, telefone, endereco) {
+    document.getElementById('motorista_id').value = id;
+    document.getElementById('nome').value = nome;
+    document.getElementById('cnh').value = cnh;
+    document.getElementById('categoria_cnh').value = categoria_cnh;
+    document.getElementById('validade_cnh').value = validade_cnh;
+    document.getElementById('cpf').value = cpf;
+    document.getElementById('telefone').value = telefone;
+    document.getElementById('endereco').value = endereco;
+    
+    document.getElementById('modalMotoristaLabel').textContent = 'Editar Motorista';
+    new bootstrap.Modal(document.getElementById('modalMotorista')).show();
+}
+
+function excluirMotorista(id) {
+    if (confirm('Tem certeza que deseja excluir este motorista?')) {
+        fetch(`/motoristas/${id}/excluir`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert(data.error);
+            } else {
+                alert(data.message);
+                window.location.reload();
+            }
+        })
+        .catch(error => {
+            console.error('Erro:', error);
+            alert('Erro ao excluir motorista');
+        });
+    }
+}
+
+// Limpar formulário quando o modal for fechado
+document.getElementById('modalMotorista').addEventListener('hidden.bs.modal', function () {
+    document.getElementById('formMotorista').reset();
+    document.getElementById('motorista_id').value = '';
+    document.getElementById('modalMotoristaLabel').textContent = 'Adicionar Motorista';
+});
+</script>
+{% endblock %}

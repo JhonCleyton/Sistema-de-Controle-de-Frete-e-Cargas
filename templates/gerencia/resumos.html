@@ -1,0 +1,182 @@
+{% extends "index.html" %}
+
+{% block styles %}
+<style>
+    .card-3d {
+        background: linear-gradient(135deg, #ffffff 0%, #f0f0f0 100%);
+        border-radius: 15px;
+        box-shadow: 
+            0 10px 20px rgba(0,0,0,0.12),
+            0 4px 8px rgba(0,0,0,0.06),
+            inset 0 -5px 12px rgba(0,0,0,0.05);
+        transition: all 0.3s ease;
+        transform: perspective(1000px) rotateX(0deg);
+    }
+    
+    .card-3d:hover {
+        transform: perspective(1000px) rotateX(5deg) translateY(-5px);
+        box-shadow: 
+            0 15px 30px rgba(0,0,0,0.15),
+            0 8px 12px rgba(0,0,0,0.08),
+            inset 0 -5px 12px rgba(0,0,0,0.05);
+    }
+    
+    .card-header {
+        background: linear-gradient(135deg, #4a90e2 0%, #357abd 100%);
+        color: white;
+        border-radius: 15px 15px 0 0;
+        padding: 1rem;
+    }
+    
+    .value-large {
+        font-size: 2rem;
+        font-weight: bold;
+        color: #357abd;
+    }
+    
+    .chart-container {
+        position: relative;
+        height: 300px;
+        margin-bottom: 2rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <h2 class="mb-4">Resumo Geral</h2>
+    
+    <!-- Cards com totais -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card card-3d">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Total de Cargas</h5>
+                </div>
+                <div class="card-body text-center">
+                    <div class="value-large">{{ total_cargas }}</div>
+                    <small class="text-muted">cargas registradas</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card card-3d">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Valor Total</h5>
+                </div>
+                <div class="card-body text-center">
+                    <div class="value-large">R$ {{ "%.2f"|format(total_valor) }}</div>
+                    <small class="text-muted">em mercadorias</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card card-3d">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Peso Total</h5>
+                </div>
+                <div class="card-body text-center">
+                    <div class="value-large">{{ "%.2f"|format(total_peso) }} kg</div>
+                    <small class="text-muted">em mercadorias</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card card-3d">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Total de Embalagens</h5>
+                </div>
+                <div class="card-body text-center">
+                    <div class="value-large">{{ total_embalagens }}</div>
+                    <small class="text-muted">volumes</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Gráficos -->
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card card-3d">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Cargas por Status</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="statusChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card card-3d">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Cargas por Transportadora</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="transportadoraChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Dados para o gráfico de status
+    const statusData = {{ status_counts|tojson }};
+    new Chart(document.getElementById('statusChart'), {
+        type: 'pie',
+        data: {
+            labels: Object.keys(statusData),
+            datasets: [{
+                data: Object.values(statusData),
+                backgroundColor: [
+                    '#4a90e2',
+                    '#e25c5c',
+                    '#5ce263',
+                    '#e2cf5c',
+                    '#9b5ce2'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false
+        }
+    });
+    
+    // Dados para o gráfico de transportadoras
+    const transportadoraData = {{ transportadora_counts|tojson }};
+    new Chart(document.getElementById('transportadoraChart'), {
+        type: 'bar',
+        data: {
+            labels: Object.keys(transportadoraData),
+            datasets: [{
+                label: 'Número de Cargas',
+                data: Object.values(transportadoraData),
+                backgroundColor: '#4a90e2'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

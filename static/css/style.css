@@ -1,0 +1,143 @@
+/* Estilos gerais */
+body {
+    background-color: #f8f9fa;
+}
+
+/* Estilos do chat */
+.chat-container {
+    height: calc(100vh - 100px);
+    background-color: white;
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.mensagem {
+    margin-bottom: 1rem;
+}
+
+.mensagem.enviada {
+    text-align: right;
+}
+
+.mensagem.enviada .mensagem-conteudo {
+    background-color: #0d6efd;
+    color: white;
+    border-radius: 15px 15px 0 15px;
+    padding: 10px 15px;
+}
+
+.mensagem.recebida .mensagem-conteudo {
+    background-color: #f8f9fa;
+    color: #212529;
+    border-radius: 15px 15px 15px 0;
+    padding: 10px 15px;
+}
+
+.mensagem-data {
+    font-size: 0.8rem;
+    color: #6c757d;
+}
+
+/* Estilos do modal de perfil */
+.icon-option {
+    cursor: pointer;
+    padding: 5px;
+    border: 2px solid transparent;
+    border-radius: 5px;
+    transition: all 0.2s;
+}
+
+.icon-option:hover {
+    border-color: #007bff;
+    transform: scale(1.05);
+}
+
+.icon-option.selected {
+    border-color: #28a745;
+    background-color: rgba(40, 167, 69, 0.1);
+}
+
+.profile-icon {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    margin-right: 10px;
+    object-fit: cover;
+}
+
+.mensagem-remetente img {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    margin-right: 5px;
+    object-fit: cover;
+}
+
+/* Estilos da lista de usuários */
+.nav-link {
+    border-radius: 8px;
+    margin-bottom: 5px;
+    transition: all 0.2s;
+}
+
+.nav-link:hover {
+    background-color: #f8f9fa;
+    transform: translateX(5px);
+}
+
+.nav-link.active {
+    background-color: #0d6efd;
+    color: white;
+    transform: translateX(5px);
+}
+
+.nav-link .usuario-nome {
+    color: #495057;
+    font-weight: 500;
+}
+
+.nav-link.active .usuario-nome {
+    color: white !important;
+}
+
+/* Área de digitação */
+.input-group {
+    background-color: white;
+    border-radius: 25px;
+    padding: 5px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.input-group input {
+    border: none;
+    border-radius: 20px !important;
+    padding-left: 15px;
+}
+
+.input-group input:focus {
+    box-shadow: none;
+}
+
+.input-group button {
+    border-radius: 20px !important;
+    padding: 8px 20px;
+}
+
+/* Scrollbar personalizada */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}

@@ -1,0 +1,467 @@
+{% extends "index.html" %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <h2>Financeiro - Carga #{{ carga.id }}</h2>
+    <form id="formFinanceiro" method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <!-- CONFERÊNCIA DE CARGA -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h4>Conferência de Carga</h4>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label class="form-label">Tipo de Frete</label>
+                            <input type="text" class="form-control" id="tipo_frete" value="{{ carga.controle_frete.tipo_frete }}" readonly>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- RECEBIMENTOS -->
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h4>Recebimentos</h4>
+                <button type="button" class="btn btn-primary" onclick="adicionarRecebimento()">
+                    <i class="fas fa-plus"></i> Adicionar Recebimento
+                </button>
+            </div>
+            <div class="card-body">
+                <div id="recebimentos">
+                    {% for recebimento in recebimentos %}
+                    <div class="recebimento-item mb-3 border p-3">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label class="form-label">Forma</label>
+                                    <select class="form-select" name="forma_pagamento[]" required>
+                                        <option value="Boleto" {% if recebimento.forma_pagamento == 'Boleto' %}selected{% endif %}>Boleto</option>
+                                        <option value="Depósito em conta" {% if recebimento.forma_pagamento == 'Depósito em conta' %}selected{% endif %}>Depósito em conta</option>
+                                        <option value="Dinheiro" {% if recebimento.forma_pagamento == 'Dinheiro' %}selected{% endif %}>Dinheiro</option>
+                                        <option value="Promissória" {% if recebimento.forma_pagamento == 'Promissória' %}selected{% endif %}>Promissória</option>
+                                        <option value="Outros" {% if recebimento.forma_pagamento == 'Outros' %}selected{% endif %}>Outros</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Observação</label>
+                                    <input type="text" class="form-control" name="observacoes_recebimento[]" value="{{ recebimento.observacoes }}">
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="mb-3">
+                                    <label class="form-label">Valor</label>
+                                    <input type="number" step="0.01" class="form-control valor-recebimento" name="valor_recebimento[]" value="{{ recebimento.valor }}" required>
+                                </div>
+                            </div>
+                            <div class="col-md-1">
+                                <div class="mb-3">
+                                    <label class="form-label">&nbsp;</label>
+                                    <button type="button" class="btn btn-danger form-control" onclick="removerItem(this)">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="recebimento-item mb-3 border p-3">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label class="form-label">Forma</label>
+                                    <select class="form-select" name="forma_pagamento[]" required>
+                                        <option value="">Selecione a forma</option>
+                                        <option value="Boleto">Boleto</option>
+                                        <option value="Depósito em conta">Depósito em conta</option>
+                                        <option value="Dinheiro">Dinheiro</option>       
+                                        <option value="Promissória">Promissória</option>
+                                        <option value="Outros">Outros</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Observação</label>
+                                    <input type="text" class="form-control" name="observacoes_recebimento[]">
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="mb-3">
+                                    <label class="form-label">Valor</label>
+                                    <input type="number" step="0.01" class="form-control valor-recebimento" name="valor_recebimento[]" required>
+                                </div>
+                            </div>
+                            <div class="col-md-1">
+                                <div class="mb-3">
+                                    <label class="form-label">&nbsp;</label>
+                                    <button type="button" class="btn btn-danger form-control" onclick="removerItem(this)">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class="row">
+                    <div class="col-md-3 offset-md-7">
+                        <div class="mb-3">
+                            <label class="form-label">Valor Total Recebimentos</label>
+                            <input type="number" step="0.01" class="form-control" id="total-recebimentos" readonly>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- DESPESAS -->
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h4>Despesas</h4>
+                <button type="button" class="btn btn-primary" onclick="adicionarDespesa()">
+                    <i class="fas fa-plus"></i> Adicionar Despesa
+                </button>
+            </div>
+            <div class="card-body">
+                <div id="despesas">
+                    {% for despesa in despesas %}
+                    <div class="despesa-item mb-3 border p-3">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label class="form-label">Tipo</label>
+                                    <select class="form-select" name="descricao[]" required>
+                                        <option value="Alimentação" {% if despesa.descricao == 'Alimentação' %}selected{% endif %}>Alimentação</option>
+                                        <option value="Combustível" {% if despesa.descricao == 'Combustível' %}selected{% endif %}>Combustível</option>
+                                        <option value="Descarga" {% if despesa.descricao == 'Descarga' %}selected{% endif %}>Descarga</option>
+                                        <option value="Diarias" {% if despesa.descricao == 'Diarias' %}selected{% endif %}>Diarias</option>
+                                        <option value="Frete" {% if despesa.descricao == 'Frete' %}selected{% endif %}>Frete</option>
+                                        <option value="Impostos" {% if despesa.descricao == 'Impostos' %}selected{% endif %}>Impostos</option>
+                                        <option value="Manutenção" {% if despesa.descricao == 'Manutenção' %}selected{% endif %}>Manutenção</option>
+                                        <option value="Pedágio" {% if despesa.descricao == 'Pedágio' %}selected{% endif %}>Pedágio</option>
+                                        <option value="Outros" {% if despesa.descricao == 'Outros' %}selected{% endif %}>Outros</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Observação</label>
+                                    <input type="text" class="form-control" name="observacoes_despesa[]" value="{{ despesa.observacoes }}">
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="mb-3">
+                                    <label class="form-label">Valor</label>
+                                    <input type="number" step="0.01" class="form-control valor-despesa" name="valor_despesa[]" value="{{ despesa.valor }}" required>
+                                </div>
+                            </div>
+                            <div class="col-md-1">
+                                <div class="mb-3">
+                                    <label class="form-label">&nbsp;</label>
+                                    <button type="button" class="btn btn-danger form-control" onclick="removerItem(this)">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="despesa-item mb-3 border p-3">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label class="form-label">Tipo</label>
+                                    <select class="form-select" name="descricao[]" required>
+                                        <option value="">Selecione o tipo</option>
+                                        <option value="Alimentação">Alimentação</option>
+                                        <option value="Combustível">Combustível</option>
+                                        <option value="Descarga">Descarga</option>
+                                        <option value="Diarias">Diarias</option>
+                                        <option value="Frete">Frete</option>
+                                        <option value="Impostos">Impostos</option>    
+                                        <option value="Manutenção">Manutenção</option>
+                                        <option value="Outros">Outros</option>
+                                        <option value="Pedágio">Pedágio</option>                                 
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Observação</label>
+                                    <input type="text" class="form-control" name="observacoes_despesa[]">
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="mb-3">
+                                    <label class="form-label">Valor</label>
+                                    <input type="number" step="0.01" class="form-control valor-despesa" name="valor_despesa[]" required>
+                                </div>
+                            </div>
+                            <div class="col-md-1">
+                                <div class="mb-3">
+                                    <label class="form-label">&nbsp;</label>
+                                    <button type="button" class="btn btn-danger form-control" onclick="removerItem(this)">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class="row">
+                    <div class="col-md-3 offset-md-7">
+                        <div class="mb-3">
+                            <label class="form-label">Valor Total Despesas</label>
+                            <input type="number" step="0.01" class="form-control" id="total-despesas" readonly>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mb-4">
+            <div class="col">
+                <button type="submit" class="btn btn-primary">Salvar Financeiro</button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+// Configuração global do token CSRF
+const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+
+// Definir o ID da carga no escopo global
+const cargaId = {{ carga.id }};
+
+// Função para adicionar headers padrão em todas as requisições fetch
+function fetchWithCsrf(url, options = {}) {
+    const defaultHeaders = {
+        'X-CSRF-TOKEN': csrfToken
+    };
+    
+    return fetch(url, {
+        ...options,
+        headers: {
+            ...defaultHeaders,
+            ...options.headers
+        }
+    });
+}
+
+document.getElementById('formFinanceiro').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    
+    console.log("=== DADOS DO FORMULÁRIO ===");
+    console.log("Recebimentos:");
+    console.log("Formas:", formData.getAll('forma_pagamento[]'));
+    console.log("Valores:", formData.getAll('valor_recebimento[]'));
+    console.log("Observações:", formData.getAll('observacoes_recebimento[]'));
+    
+    console.log("\nDespesas:");
+    console.log("Tipos:", formData.getAll('descricao[]'));
+    console.log("Valores:", formData.getAll('valor_despesa[]'));
+    console.log("Observações:", formData.getAll('observacoes_despesa[]'));
+    
+    fetchWithCsrf(window.location.href, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(data => {
+                throw new Error(data.error || 'Erro ao salvar dados financeiros');
+            });
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.error) {
+            throw new Error(data.error);
+        }
+        // Redireciona de volta para a página da carga usando o ID definido globalmente
+        window.location.href = `/visualizar_carga/${cargaId}`;
+    })
+    .catch(error => {
+        console.error('Erro:', error);
+        alert('Erro ao salvar dados financeiros: ' + error.message);
+    });
+});
+
+// Função para formatar valor em reais
+function formatarMoeda(valor) {
+    return new Intl.NumberFormat('pt-BR', {
+        style: 'currency',
+        currency: 'BRL'
+    }).format(valor);
+}
+
+function adicionarRecebimento() {
+    const container = document.getElementById('recebimentos');
+    const template = `
+        <div class="recebimento-item mb-3 border p-3">
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="mb-3">
+                        <label class="form-label">Forma</label>
+                        <select class="form-select" name="forma_pagamento[]" required>
+                            <option value="">Selecione a forma</option>
+                            <option value="Boleto">Boleto</option>
+                            <option value="Depósito em conta">Depósito em conta</option>
+                            <option value="Dinheiro">Dinheiro</option>       
+                            <option value="Promissória">Promissória</option>
+                            <option value="Outros">Outros</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label class="form-label">Observação</label>
+                        <input type="text" class="form-control" name="observacoes_recebimento[]">
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="mb-3">
+                        <label class="form-label">Valor</label>
+                        <input type="number" step="0.01" class="form-control valor-recebimento" name="valor_recebimento[]" required>
+                    </div>
+                </div>
+                <div class="col-md-1">
+                    <div class="mb-3">
+                        <label class="form-label">&nbsp;</label>
+                        <button type="button" class="btn btn-danger form-control" onclick="removerItem(this)">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Adicionar o novo item usando innerHTML
+    const div = document.createElement('div');
+    div.innerHTML = template;
+    const novoItem = div.firstElementChild;
+    container.appendChild(novoItem);
+    
+    // Adicionar evento de change no campo de valor
+    const valorInput = novoItem.querySelector('.valor-recebimento');
+    valorInput.addEventListener('input', calcularTotalRecebimentos);
+    
+    calcularTotalRecebimentos();
+}
+
+function adicionarDespesa() {
+    const container = document.getElementById('despesas');
+    const template = `
+        <div class="despesa-item mb-3 border p-3">
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="mb-3">
+                        <label class="form-label">Tipo</label>
+                        <select class="form-select" name="descricao[]" required>
+                            <option value="">Selecione o tipo</option>
+                            <option value="Alimentação">Alimentação</option>
+                            <option value="Combustível">Combustível</option>
+                            <option value="Descarga">Descarga</option>
+                            <option value="Diarias">Diarias</option>
+                            <option value="Frete">Frete</option>
+                            <option value="Impostos">Impostos</option>
+                            <option value="Manutenção">Manutenção</option>
+                            <option value="Pedágio">Pedágio</option>
+                            <option value="Outros">Outros</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label class="form-label">Observação</label>
+                        <input type="text" class="form-control" name="observacoes_despesa[]">
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="mb-3">
+                        <label class="form-label">Valor</label>
+                        <input type="number" step="0.01" class="form-control valor-despesa" name="valor_despesa[]" required>
+                    </div>
+                </div>
+                <div class="col-md-1">
+                    <div class="mb-3">
+                        <label class="form-label">&nbsp;</label>
+                        <button type="button" class="btn btn-danger form-control" onclick="removerItem(this)">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Adicionar o novo item usando innerHTML
+    const div = document.createElement('div');
+    div.innerHTML = template;
+    const novoItem = div.firstElementChild;
+    container.appendChild(novoItem);
+    
+    // Adicionar evento de change no campo de valor
+    const valorInput = novoItem.querySelector('.valor-despesa');
+    valorInput.addEventListener('input', calcularTotalDespesas);
+    
+    calcularTotalDespesas();
+}
+
+function removerItem(button) {
+    const item = button.closest('.recebimento-item, .despesa-item');
+    item.remove();
+    calcularTotalRecebimentos();
+    calcularTotalDespesas();
+}
+
+function calcularTotalRecebimentos() {
+    const valores = document.querySelectorAll('.valor-recebimento');
+    let total = 0;
+    valores.forEach(input => {
+        total += parseFloat(input.value || 0);
+    });
+    document.getElementById('total-recebimentos').value = total.toFixed(2);
+}
+
+function calcularTotalDespesas() {
+    const valores = document.querySelectorAll('.valor-despesa');
+    let total = 0;
+    valores.forEach(input => {
+        total += parseFloat(input.value || 0);
+    });
+    document.getElementById('total-despesas').value = total.toFixed(2);
+}
+
+// Adicionar eventos de input nos campos de valor existentes
+document.addEventListener('DOMContentLoaded', function() {
+    // Adicionar eventos nos campos de recebimento
+    document.querySelectorAll('.valor-recebimento').forEach(input => {
+        input.addEventListener('input', calcularTotalRecebimentos);
+    });
+    
+    // Adicionar eventos nos campos de despesa
+    document.querySelectorAll('.valor-despesa').forEach(input => {
+        input.addEventListener('input', calcularTotalDespesas);
+    });
+    
+    // Calcular totais iniciais
+    calcularTotalRecebimentos();
+    calcularTotalDespesas();
+});
+</script>
+{% endblock %}

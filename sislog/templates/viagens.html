@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Viagens</h2>
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addTripModal">
+            Nova Viagem
+        </button>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Data</th>
+                    <th>Veículo</th>
+                    <th>Motorista</th>
+                    <th>Destino</th>
+                    <th>KM Total</th>
+                    <th>Consumo</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for viagem in viagens %}
+                <tr>
+                    <td>{{ viagem.date.strftime('%d/%m/%Y') }}</td>
+                    <td>{{ viagem.vehicle.plate }}</td>
+                    <td>{{ viagem.driver.name }}</td>
+                    <td>{{ viagem.destination }}</td>
+                    <td>{{ viagem.total_km }}</td>
+                    <td>{{ "%.2f"|format(viagem.fuel_consumption) }} km/l</td>
+                    <td>
+                        <button class="btn btn-sm btn-info">Detalhes</button>
+                        {% if current_user.is_admin %}
+                        <button class="btn btn-sm btn-primary" onclick="editarViagem({{ viagem.id }})">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-sm btn-danger" onclick="excluirViagem({{ viagem.id }})">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal Nova Viagem -->
+<div class="modal fade" id="addTripModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Nova Viagem</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="tripForm">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="date" class="form-label">Data</label>
+                            <input type="date" class="form-control" id="date" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="vehicle" class="form-label">Veículo</label>
+                            <select class="form-select" id="vehicle" required>
+                                <option value="">Selecione...</option>
+                                {% for veiculo in veiculos %}
+                                <option value="{{ veiculo.id }}">{{ veiculo.plate }} - {{ veiculo.model }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="driver" class="form-label">Motorista</label>
+                            <select class="form-select" id="driver" required>
+                                <option value="">Selecione...</option>
+                                {% for motorista in motoristas %}
+                                <option value="{{ motorista.id }}">{{ motorista.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="destination" class="form-label">Destino</label>
+                            <select class="form-select" id="destination" required>
+                                <option value="">Selecione a cidade...</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label for="initial_km" class="form-label">KM Inicial</label>
+                            <input type="number" class="form-control" id="initial_km" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="final_km" class="form-label">KM Final</label>
+                            <input type="number" class="form-control" id="final_km" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="fuel_liters" class="form-label">Litros Abastecidos</label>
+                            <input type="number" step="0.01" class="form-control" id="fuel_liters" required>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="km_rodados" class="form-label">KM Rodados</label>
+                            <input type="number" class="form-control" id="km_rodados" readonly>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="consumo_medio" class="form-label">Consumo Médio (km/L)</label>
+                            <input type="number" class="form-control" id="consumo_medio" readonly>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary">Salvar</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

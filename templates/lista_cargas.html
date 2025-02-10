@@ -1,0 +1,312 @@
+{% extends "index.html" %}
+
+{% block styles %}
+<style>
+.status-select {
+    padding: 2px 8px;
+    font-size: 0.875rem;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.status-select.bg-success {
+    border-color: #198754;
+}
+
+.status-select.bg-warning {
+    border-color: #ffc107;
+}
+
+.status-select option {
+    background-color: white;
+    color: black;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Lista de Cargas</h2>
+        <a href="{{ url_for('nova_carga') }}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Nova Carga
+        </a>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+      <div class="card">
+        <div class="card-body">
+            <!-- Novo formulário de busca -->
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <input type="text" id="busca-numero-carga" class="form-control" placeholder="Número da Carga">
+                </div>
+                <div class="col-md-4">
+                    <select id="busca-transportadora" class="form-select">
+                        <option value="">Selecione a Transportadora</option>
+                        {% for transportadora in transportadoras %}
+                        <option value="{{ transportadora.nome }}">{{ transportadora.nome }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <button id="btn-buscar" class="btn btn-primary">Buscar</button>
+                    <button id="btn-limpar" class="btn btn-secondary">Limpar</button>
+                </div>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Carga</th>
+                            <th>Status</th>
+                            <th>Data Saída</th>
+                            <th>Data Chegada</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for carga in cargas %}
+                        <tr data-carga-info="{{ {'id': carga.id, 'carga': carga.carga, 'transportadora': carga.transportadora.nome if carga.transportadora else ''} | tojson | forceescape }}">
+                            <td>{{ carga.id }}</td>
+                            <td>{{ carga.carga }}</td>
+                            <td>
+                                {% if current_user.role == 'gerencia' %}
+                                <select class="form-select form-select-sm status-select" data-carga-id="{{ carga.id }}" style="width: auto; display: inline-block;">
+                                    <option value="Em Andamento" {% if carga.status == 'Em Andamento' %}selected{% endif %}>Em Andamento</option>
+                                    <option value="Fechado" {% if carga.status == 'Fechado' %}selected{% endif %}>Fechado</option>
+                                </select>
+                                {% else %}
+                                <span class="badge {% if carga.status == 'Fechado' %}bg-success{% else %}bg-warning{% endif %}">
+                                    {{ carga.status }}
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td>{{ carga.data_saida.strftime('%d/%m/%Y') if carga.data_saida }}</td>
+                            <td>{{ carga.logistica.data_entrega.strftime('%d/%m/%Y') if carga.logistica and carga.logistica.data_entrega }}</td>
+                            <td>
+                                <div class="d-flex gap-2">
+                                    <a href="{{ url_for('visualizar_carga', carga_id=carga.id) }}" class="btn btn-info btn-sm">
+                                        <i class="fas fa-eye"></i> Visualizar
+                                    </a>
+                                    {% if current_user.is_gerente %}
+                                        <a href="{{ url_for('editar_carga', carga_id=carga.id) }}" class="btn btn-warning btn-sm">
+                                            <i class="fas fa-edit"></i> Editar
+                                        </a>
+                                        <button onclick="excluirCarga({{ carga.id }})" class="btn btn-danger btn-sm">
+                                            <i class="fas fa-trash"></i> Excluir
+                                        </button>
+                                        <a href="{{ url_for('logistica', carga_id=carga.id) }}" class="btn btn-primary btn-sm">
+                                            <i class="fas fa-truck"></i> Logística
+                                        </a>
+                                        <a href="{{ url_for('financeiro', carga_id=carga.id) }}" class="btn btn-success btn-sm">
+                                            <i class="fas fa-dollar-sign"></i> Financeiro
+                                        </a>
+                                        <a href="{{ url_for('gerencia', carga_id=carga.id) }}" class="btn btn-secondary btn-sm">
+                                            <i class="fas fa-cog"></i> Gerência
+                                        </a>
+                                    {% elif current_user.can_edit %}
+                                        {% if current_user.is_logistica %}
+                                        <a href="{{ url_for('logistica', carga_id=carga.id) }}" class="btn btn-primary btn-sm">
+                                            <i class="fas fa-truck"></i> Logística
+                                        </a>
+                                        {% endif %}
+                                        {% if current_user.is_financeiro %}
+                                        <a href="{{ url_for('financeiro', carga_id=carga.id) }}" class="btn btn-success btn-sm">
+                                            <i class="fas fa-dollar-sign"></i> Financeiro
+                                        </a>
+                                        {% endif %}
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Confirmação Exclusão -->
+<div class="modal fade" id="modalConfirmacao" tabindex="-1" aria-labelledby="modalConfirmacaoLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalConfirmacaoLabel">Confirmar Exclusão</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Tem certeza que deseja excluir esta carga? Esta ação não pode ser desfeita.
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <form id="formExcluir" method="POST" action="{{ url_for('excluir_carga') }}">
+                    <input type="hidden" id="excluir_id" name="carga_id">
+                    <button type="submit" class="btn btn-danger">Confirmar Exclusão</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Erro -->
+<div class="modal fade" id="errorModal" tabindex="-1" aria-labelledby="errorModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="errorModalLabel">Erro</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p id="errorMessage"></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const tabelaCargas = document.querySelector('.table-striped');
+    const inputNumeroCarga = document.getElementById('busca-numero-carga');
+    const selectTransportadora = document.getElementById('busca-transportadora');
+    const btnBuscar = document.getElementById('btn-buscar');
+    const btnLimpar = document.getElementById('btn-limpar');
+
+    function filtrarCargas() {
+        const numeroCarga = inputNumeroCarga.value.toLowerCase();
+        const transportadora = selectTransportadora.value.toLowerCase();
+
+        console.log('Buscando - Número da Carga:', numeroCarga);
+        console.log('Buscando - Transportadora:', transportadora);
+
+        const linhas = tabelaCargas.querySelectorAll('tbody tr');
+        console.log('Total de linhas:', linhas.length);
+
+        linhas.forEach(linha => {
+            const colunaNumero = linha.querySelector('td:nth-child(2)');
+            let dadosCarga = {};
+
+            // Tentar parsing de diferentes formas
+            try {
+                // Primeiro, tentar usar dataset
+                const dadosJson = linha.dataset.cargaInfo;
+                
+                // Se dataset não funcionar, tentar getAttribute
+                if (!dadosJson) {
+                    const attrJson = linha.getAttribute('data-carga-info');
+                    dadosCarga = attrJson ? JSON.parse(attrJson.trim()) : {};
+                } else {
+                    dadosCarga = JSON.parse(dadosJson);
+                }
+            } catch (error) {
+                console.error('Erro ao parsear JSON:', error);
+                console.error('Conteúdo do JSON:', linha.dataset.cargaInfo);
+                console.error('Atributo data-carga-info:', linha.getAttribute('data-carga-info'));
+                return; // Pula esta iteração se houver erro
+            }
+
+            console.log('Dados da Carga:', dadosCarga);
+            console.log('Número da Carga:', colunaNumero.textContent);
+            console.log('Transportadora da Carga:', dadosCarga.transportadora);
+
+            const mostrarLinha = 
+                (numeroCarga === '' || colunaNumero.textContent.toLowerCase().includes(numeroCarga)) &&
+                (transportadora === '' || (dadosCarga.transportadora || '').toLowerCase().includes(transportadora));
+
+            console.log('Mostrar linha:', mostrarLinha);
+
+            linha.style.display = mostrarLinha ? '' : 'none';
+        });
+    }
+
+    // Adicionar evento de clique ao botão de busca
+    btnBuscar.addEventListener('click', function(event) {
+        event.preventDefault(); // Prevenir qualquer comportamento padrão
+        filtrarCargas();
+    });
+
+    btnLimpar.addEventListener('click', function() {
+        inputNumeroCarga.value = '';
+        selectTransportadora.value = '';
+        const linhas = tabelaCargas.querySelectorAll('tbody tr');
+        linhas.forEach(linha => linha.style.display = '');
+    });
+
+    // Adicionar evento de tecla Enter no campo de busca
+    inputNumeroCarga.addEventListener('keypress', function(event) {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            filtrarCargas();
+        }
+    });
+
+    // Adicionar evento de mudança no select de transportadora
+    selectTransportadora.addEventListener('change', filtrarCargas);
+});    
+function excluirCarga(id) {
+    document.getElementById('excluir_id').value = id;
+    const modal = new bootstrap.Modal(document.getElementById('modalConfirmacao'));
+    modal.show();
+}
+
+// Adicionar evento de mudança para os selects de status
+document.addEventListener('DOMContentLoaded', function() {
+    const statusSelects = document.querySelectorAll('.status-select');
+    const errorModal = new bootstrap.Modal(document.getElementById('errorModal'));
+
+    statusSelects.forEach(select => {
+        select.addEventListener('change', function() {
+            const cargaId = this.dataset.cargaId;
+            const novoStatus = this.value;
+            
+            fetch('/atualizar_status/' + cargaId, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({
+                    status: novoStatus
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Atualizar a cor do select baseado no status
+                    if (novoStatus === 'Fechado') {
+                        this.classList.remove('bg-warning');
+                        this.classList.add('bg-success', 'text-white');
+                    } else {
+                        this.classList.remove('bg-success', 'text-white');
+                        this.classList.add('bg-warning');
+                    }
+                } else {
+                    throw new Error(data.message || 'Erro ao atualizar status');
+                }
+            })
+            .catch(error => {
+                document.getElementById('errorMessage').textContent = error.message;
+                errorModal.show();
+                // Reverter a seleção para o valor anterior
+                this.value = this.value === 'Fechado' ? 'Em Andamento' : 'Fechado';
+            });
+        });
+    });
+});
+</script>
+{% endblock %}

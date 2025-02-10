@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Controle de Estoque</h2>
+    
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Estoque Atual</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Código</th>
+                                    <th>Produto</th>
+                                    <th>Local</th>
+                                    <th>Quantidade</th>
+                                    <th>Unidade</th>
+                                    <th>Última Atualização</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for estoque in estoques %}
+                                <tr>
+                                    <td>{{ estoque.produto.codigo }}</td>
+                                    <td>{{ estoque.produto.nome }}</td>
+                                    <td>{{ estoque.local.nome }}</td>
+                                    <td>{{ estoque.quantidade }}</td>
+                                    <td>{{ estoque.produto.unidade_medida }}</td>
+                                    <td>{{ estoque.updated_at.strftime('%d/%m/%Y %H:%M') }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Registrar Movimento</h5>
+                </div>
+                <div class="card-body">
+                    <form id="movimentoForm">
+                        <div class="mb-3">
+                            <label for="produto" class="form-label">Produto</label>
+                            <select class="form-select" id="produto" name="produto_id" required>
+                                <option value="">Selecione um produto</option>
+                                {% for produto in produtos %}
+                                <option value="{{ produto.id }}">{{ produto.codigo }} - {{ produto.nome }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="local" class="form-label">Local</label>
+                            <select class="form-select" id="local" name="local_id" required>
+                                <option value="">Selecione um local</option>
+                                {% for local in locais %}
+                                <option value="{{ local.id }}">{{ local.nome }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="quantidade" class="form-label">Quantidade</label>
+                            <input type="number" class="form-control" id="quantidade" name="quantidade" step="0.01" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="tipo_movimento" class="form-label">Tipo de Movimento</label>
+                            <select class="form-select" id="tipo_movimento" name="tipo_movimento" required>
+                                <option value="entrada">Entrada</option>
+                                <option value="saida">Saída</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="observacao" class="form-label">Observação</label>
+                            <textarea class="form-control" id="observacao" name="observacao" rows="3"></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Registrar Movimento</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Ações Rápidas</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('estoque.produtos') }}" class="btn btn-outline-primary">
+                            Cadastrar Novo Produto
+                        </a>
+                        <a href="{{ url_for('estoque.historico') }}" class="btn btn-outline-secondary">
+                            Consultar Histórico
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('movimentoForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    
+    fetch("{{ url_for('estoque.registrar_movimento') }}", {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert(data.error);
+        } else {
+            alert('Movimento registrado com sucesso!');
+            location.reload();
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Erro ao registrar movimento');
+    });
+});
+</script>
+{% endblock %}
