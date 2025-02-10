@@ -1,0 +1,623 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <!-- Transportadora Section -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Gerenciar Transportadoras</h5>
+                </div>
+                <div class="card-body">
+                    <button type="button" class="btn btn-primary mb-3" id="newTransportadoraBtn">
+                        Nova Transportadora
+                    </button>
+                    <div class="table-responsive">
+                        <table class="table" id="transportadorasTable">
+                            <thead>
+                                <tr>
+                                    <th>Nome</th>
+                                    <th>CNPJ</th>
+                                    <th>Telefone</th>
+                                    <th>Email</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="transportadorasList">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Veículos Section -->
+        <div id="veiculosSection" class="card" style="display: none;">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Veículos</h5>
+                <button class="btn btn-primary" id="newVeiculoBtn" disabled>
+                    <i class="fas fa-plus"></i> Novo Veículo
+                </button>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped" id="veiculosTable">
+                        <thead>
+                            <tr>
+                                <th>Placa</th>
+                                <th>Modelo</th>
+                                <th>Marca</th>
+                                <th>Tipo</th>
+                                <th>Ano</th>
+                                <th>Capacidade</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Transportadora -->
+<div class="modal fade" id="transportadoraModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="transportadoraModalLabel">Nova Transportadora</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="transportadoraForm">
+                    <input type="hidden" id="transportadoraId">
+                    <div class="mb-3">
+                        <label class="form-label">Nome</label>
+                        <input type="text" class="form-control" id="nome" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">CNPJ</label>
+                        <input type="text" class="form-control" id="cnpj" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Telefone</label>
+                        <input type="text" class="form-control" id="telefone">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
+                        <input type="email" class="form-control" id="email">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="saveTransportadora()">Salvar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Veículo -->
+<div class="modal fade" id="veiculoModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="veiculoModalLabel">Novo Veículo</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="veiculoForm">
+                    <input type="hidden" name="csrf_token" id="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" id="veiculoId">
+                    <div class="mb-3">
+                        <label class="form-label">Placa *</label>
+                        <input type="text" class="form-control" id="placa" required maxlength="10">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Modelo</label>
+                        <input type="text" class="form-control" id="modelo" maxlength="100">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Marca</label>
+                        <input type="text" class="form-control" id="marca" maxlength="100">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Tipo</label>
+                        <select class="form-select" id="tipo">
+                            <option value="">Selecione...</option>
+                            <option value="Truck">Truck</option>
+                            <option value="Carreta">Carreta</option>
+                            <option value="Van">Van</option>
+                            <option value="Utilitário">Utilitário</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Ano</label>
+                        <input type="number" class="form-control" id="ano" min="1900" max="2100">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Capacidade (kg)</label>
+                        <input type="number" class="form-control" id="capacidade" min="0" step="0.01">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="saveVeiculo()">Salvar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Variáveis globais
+let selectedTransportadoraId = null;
+
+// Função para obter os headers com o token CSRF
+function getHeaders(contentType = 'application/json') {
+    const csrf_token = "{{ csrf_token() }}";
+    return {
+        'Content-Type': contentType,
+        'Accept': 'application/json',
+        'X-CSRFToken': csrf_token
+    };
+}
+
+// Função para mostrar alertas
+function showAlert(type, message) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    `;
+    
+    // Inserir o alerta no topo do container principal
+    const container = document.querySelector('.container');
+    if (container && container.firstChild) {
+        container.insertBefore(alertDiv, container.firstChild);
+    }
+    
+    // Auto-remover após 5 segundos
+    setTimeout(() => {
+        alertDiv.remove();
+    }, 5000);
+}
+
+async function loadTransportadoras() {
+    try {
+        const response = await fetch('/api/transportadoras/', {
+            method: 'GET',
+            headers: getHeaders()
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Erro ao carregar transportadoras');
+        }
+
+        const result = await response.json();
+        const tbody = document.getElementById('transportadorasList');
+        tbody.innerHTML = '';
+
+        if (!result.transportadoras || !Array.isArray(result.transportadoras)) {
+            throw new Error('Dados de transportadoras inválidos');
+        }
+
+        result.transportadoras.forEach(transportadora => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${transportadora.nome}</td>
+                <td>${transportadora.cnpj || ''}</td>
+                <td>${transportadora.telefone || ''}</td>
+                <td>${transportadora.email || ''}</td>
+                <td>
+                    <div class="btn-group" role="group">
+                        <button class="btn btn-sm btn-warning" onclick="editTransportadora(${transportadora.id})">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteTransportadora(${transportadora.id})">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                        <button class="btn btn-sm btn-info" onclick="selectTransportadora(${transportadora.id})">
+                            <i class="fas fa-truck"></i> Veículos
+                        </button>
+                    </div>
+                </td>
+            `;
+            tbody.appendChild(row);
+        });
+    } catch (error) {
+        console.error('Erro ao carregar transportadoras:', error);
+        showAlert('danger', error.message);
+    }
+}
+
+async function saveTransportadora() {
+    try {
+        const id = document.getElementById('transportadoraId').value;
+        const data = {
+            nome: document.getElementById('nome').value,
+            cnpj: document.getElementById('cnpj').value,
+            telefone: document.getElementById('telefone').value,
+            email: document.getElementById('email').value
+        };
+
+        if (!data.nome) {
+            showAlert('danger', 'Nome da transportadora é obrigatório');
+            return;
+        }
+
+        const method = id ? 'PUT' : 'POST';
+        const url = id ? `/api/transportadoras/${id}` : '/api/transportadoras/';
+
+        console.log('Enviando requisição:', {
+            method,
+            url,
+            data
+        });
+
+        const response = await fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRFToken': "{{ csrf_token() }}"
+            },
+            body: JSON.stringify(data)
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Erro ao salvar transportadora');
+        }
+
+        const result = await response.json();
+        console.log('Resposta recebida:', result);
+
+        const modal = bootstrap.Modal.getInstance(document.getElementById('transportadoraModal'));
+        modal.hide();
+        
+        await loadTransportadoras();
+        showAlert('success', result.message || 'Transportadora salva com sucesso!');
+    } catch (error) {
+        console.error('Erro ao salvar transportadora:', error);
+        showAlert('danger', error.message);
+    }
+}
+
+async function editTransportadora(id) {
+    try {
+        const response = await fetch(`/api/transportadoras/${id}`, {
+            method: 'GET',
+            headers: getHeaders()
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Erro ao carregar dados da transportadora');
+        }
+
+        const transportadora = await response.json();
+        
+        document.getElementById('transportadoraId').value = transportadora.id;
+        document.getElementById('nome').value = transportadora.nome;
+        document.getElementById('cnpj').value = transportadora.cnpj;
+        document.getElementById('telefone').value = transportadora.telefone || '';
+        document.getElementById('email').value = transportadora.email || '';
+        
+        showTransportadoraModal(true);
+    } catch (error) {
+        console.error('Erro ao editar transportadora:', error);
+        showAlert('danger', error.message);
+    }
+}
+
+// Função para mostrar o modal de transportadora
+function showTransportadoraModal(edit = false) {
+    const form = document.getElementById('transportadoraForm');
+    if (!edit) {
+        form.reset();
+        document.getElementById('transportadoraId').value = '';
+    }
+    document.getElementById('transportadoraModalLabel').textContent = edit ? 'Editar Transportadora' : 'Nova Transportadora';
+    const modal = new bootstrap.Modal(document.getElementById('transportadoraModal'));
+    modal.show();
+}
+
+// Função para mostrar o modal de veículo
+function showVeiculoModal(edit = false) {
+    if (!selectedTransportadoraId && !edit) {
+        showAlert('warning', 'Selecione uma transportadora primeiro');
+        return;
+    }
+    const form = document.getElementById('veiculoForm');
+    if (!edit) {
+        form.reset();
+        document.getElementById('veiculoId').value = '';
+    }
+    document.getElementById('veiculoModalLabel').textContent = edit ? 'Editar Veículo' : 'Novo Veículo';
+    const modal = new bootstrap.Modal(document.getElementById('veiculoModal'));
+    modal.show();
+}
+
+// Função para selecionar uma transportadora
+function selectTransportadora(id) {
+    selectedTransportadoraId = id;
+    loadVeiculos(id);
+}
+
+async function loadVeiculos(transportadoraId) {
+    try {
+        const response = await fetch(`/api/transportadoras/${transportadoraId}/veiculos`, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'X-CSRFToken': "{{ csrf_token() }}"
+            }
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Erro ao carregar veículos');
+        }
+
+        const result = await response.json();
+        console.log('Veículos carregados:', result);
+
+        if (!result.veiculos || !Array.isArray(result.veiculos)) {
+            throw new Error('Dados de veículos inválidos');
+        }
+
+        const tbody = document.querySelector('#veiculosTable tbody');
+        tbody.innerHTML = '';
+
+        result.veiculos.forEach(veiculo => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${veiculo.placa || ''}</td>
+                <td>${veiculo.modelo || ''}</td>
+                <td>${veiculo.marca || ''}</td>
+                <td>${veiculo.tipo || ''}</td>
+                <td>${veiculo.ano || ''}</td>
+                <td>${veiculo.capacidade || ''}</td>
+                <td>
+                    <div class="btn-group" role="group">
+                        <button class="btn btn-sm btn-warning" onclick="editVeiculo(${veiculo.id})">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteVeiculo(${veiculo.id})">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </td>
+            `;
+            tbody.appendChild(row);
+        });
+
+        // Mostrar a seção de veículos
+        document.getElementById('veiculosSection').style.display = 'block';
+        // Habilitar o botão de novo veículo
+        document.getElementById('newVeiculoBtn').disabled = false;
+    } catch (error) {
+        console.error('Erro ao carregar veículos:', error);
+        showAlert('danger', error.message);
+    }
+}
+
+async function saveVeiculo() {
+    try {
+        const form = document.getElementById('veiculoForm');
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+
+        const id = document.getElementById('veiculoId').value;
+        const data = {
+            placa: document.getElementById('placa').value.trim(),
+            modelo: document.getElementById('modelo').value.trim(),
+            marca: document.getElementById('marca').value.trim(),
+            tipo: document.getElementById('tipo').value,
+            ano: document.getElementById('ano').value ? parseInt(document.getElementById('ano').value) : null,
+            capacidade: document.getElementById('capacidade').value ? parseFloat(document.getElementById('capacidade').value) : null
+        };
+
+        if (!data.placa) {
+            showAlert('danger', 'Placa do veículo é obrigatória');
+            return;
+        }
+
+        const method = id ? 'PUT' : 'POST';
+        const url = id ? 
+            `/api/transportadoras/${selectedTransportadoraId}/veiculos/${id}` : 
+            `/api/transportadoras/${selectedTransportadoraId}/veiculos`;
+
+        console.log('Enviando requisição:', {
+            method,
+            url,
+            data
+        });
+
+        const csrfToken = document.getElementById('csrf_token').value;
+        if (!csrfToken) {
+            throw new Error('CSRF token não encontrado');
+        }
+
+        const response = await fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify(data),
+            credentials: 'same-origin'
+        });
+
+        let result;
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+            result = await response.json();
+        } else {
+            throw new Error('Resposta do servidor não é JSON');
+        }
+
+        if (!response.ok) {
+            throw new Error(result.message || 'Erro ao salvar veículo');
+        }
+
+        console.log('Resposta recebida:', result);
+
+        const modal = bootstrap.Modal.getInstance(document.getElementById('veiculoModal'));
+        modal.hide();
+        
+        await loadVeiculos(selectedTransportadoraId);
+        showAlert('success', result.message || 'Veículo salvo com sucesso!');
+    } catch (error) {
+        console.error('Erro ao salvar veículo:', error);
+        showAlert('danger', error.message);
+    }
+}
+
+async function deleteVeiculo(id) {
+    if (!confirm('Tem certeza que deseja excluir este veículo?')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/transportadoras/${selectedTransportadoraId}/veiculos/${id}`, {
+            method: 'DELETE',
+            headers: {
+                'Accept': 'application/json',
+                'X-CSRFToken': "{{ csrf_token() }}"
+            }
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Erro ao excluir veículo');
+        }
+
+        await loadVeiculos(selectedTransportadoraId);
+        showAlert('success', 'Veículo excluído com sucesso!');
+    } catch (error) {
+        console.error('Erro ao excluir veículo:', error);
+        showAlert('danger', error.message);
+    }
+}
+
+// Função para deletar transportadora
+async function deleteTransportadora(id) {
+    if (!confirm('Tem certeza que deseja excluir esta transportadora?')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/transportadoras/${id}`, {
+            method: 'DELETE',
+            headers: getHeaders()
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Erro ao excluir transportadora');
+        }
+
+        await loadTransportadoras();
+        showAlert('success', 'Transportadora excluída com sucesso!');
+    } catch (error) {
+        console.error('Erro ao excluir transportadora:', error);
+        showAlert('danger', error.message);
+    }
+}
+
+async function editVeiculo(id) {
+    try {
+        const response = await fetch(`/api/transportadoras/${selectedTransportadoraId}/veiculos/${id}`, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'X-CSRFToken': "{{ csrf_token() }}"
+            }
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Erro ao carregar dados do veículo');
+        }
+
+        const result = await response.json();
+        console.log('Dados do veículo:', result);
+
+        if (!result.success || !result.veiculo) {
+            throw new Error('Dados do veículo inválidos');
+        }
+
+        const veiculo = result.veiculo;
+        document.getElementById('veiculoId').value = veiculo.id;
+        document.getElementById('placa').value = veiculo.placa || '';
+        document.getElementById('modelo').value = veiculo.modelo || '';
+        document.getElementById('marca').value = veiculo.marca || '';
+        document.getElementById('tipo').value = veiculo.tipo || '';
+        document.getElementById('ano').value = veiculo.ano || '';
+        document.getElementById('capacidade').value = veiculo.capacidade || '';
+
+        // Atualizar o título do modal
+        document.getElementById('veiculoModalLabel').textContent = 'Editar Veículo';
+        
+        // Mostrar o modal
+        const modal = new bootstrap.Modal(document.getElementById('veiculoModal'));
+        modal.show();
+    } catch (error) {
+        console.error('Erro ao editar veículo:', error);
+        showAlert('danger', error.message);
+    }
+}
+
+function showVeiculoModal(edit = false) {
+    // Limpar o formulário
+    document.getElementById('veiculoForm').reset();
+    document.getElementById('veiculoId').value = '';
+    
+    // Atualizar o título do modal
+    document.getElementById('veiculoModalLabel').textContent = edit ? 'Editar Veículo' : 'Novo Veículo';
+    
+    // Mostrar o modal
+    const modal = new bootstrap.Modal(document.getElementById('veiculoModal'));
+    modal.show();
+}
+
+// Event listener para o botão de novo veículo
+document.getElementById('newVeiculoBtn').addEventListener('click', () => showVeiculoModal(false));
+
+// Inicialização
+document.addEventListener('DOMContentLoaded', () => {
+    // Carregar transportadoras ao carregar a página
+    loadTransportadoras();
+    
+    // Listener para o botão Nova Transportadora
+    document.getElementById('newTransportadoraBtn').addEventListener('click', () => showTransportadoraModal(false));
+    
+    // Listener para o botão Novo Veículo
+    document.getElementById('newVeiculoBtn').addEventListener('click', () => showVeiculoModal(false));
+    
+    // Listener para o formulário de transportadora
+    document.getElementById('transportadoraForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        saveTransportadora();
+    });
+    
+    // Listener para o formulário de veículo
+    document.getElementById('veiculoForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        saveVeiculo();
+    });
+});
+</script>
+{% endblock %}

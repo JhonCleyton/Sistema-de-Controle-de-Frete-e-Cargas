@@ -1,0 +1,60 @@
+agora vamos criar o formulario de nova carga
+
+os dados neste formulário são
+
+*DADOS DA CARGA*
+Carga;
+status (lista suspensa, Em Transito ou Fechado
+Rota:
+NFS/CTE
+Transportadora 
+Veiculo
+Motorista
+Data saida ( abre calendario)
+Data Chegada (abre calendario)
+hora da chegada
+KM inicial
+km final
+km total (calculo automatico, diferença entre km inicial e final)
+
+*ROMANEIO*
+{nota
+Codigo do cliente (lista suspensa ou procura nos clientes cadastrados)
+Cliente(preenchimento automatico com a escolha do codigo do cliente)
+Condições de pagametno
+forma de pagamento (lista suspensa: Depósito em conta, Boleto, Bonificação, Promissória e outros.)
+quantidade de embalagens
+peso bruto previsto
+Valor Liquido} estes campos da nota repetem 5 vezes, ou adiciona um botão de "+" para incluir os dados de novo
+
+Total de emvalagens(calculo automatico de todas as quantidades de embalagens
+Peso bruto do romaneio (calculo automatico de todos os pesos brutos
+peso liquido do romaneio (repede o peso bruto total)
+quantidade de entregas
+Valor total (calculo automatico de todos os valores liquidos).
+
+*RESUMO FORMA DE PAGAMENTO*
+{Forma de pagamento(lista suspensa: Depósito, boleto, bonificação, promissória e outros)
+Condições de pagamento
+Valor} estes campos se repetem para cada cliente inserido
+
+valor total (calculo automatico de todos os valores)
+
+*RESUMO POR TIPO DE MOVIMENTO)
+Codigo (lista suspensa: T520, T521, T820)
+Tipo de movimento ( inseri automaticamente a depender da escolha do codigo: codigo T520 = (VENDA) NFe Saida Merc. Int.; Codigo T521 = VENDA NFe de Saída, Codigo T820 = Transferencia para armazenagem)
+
+*CONTROLE DE FRETE*
+Tipo de frete (lista suspensa: Empresa, Terceirizado e Cliente)
+Origem
+km inicial
+km final
+km rodados (calculo automatico, diferença entre km final e inicial)
+Valor do Frete ($)
+Abastecimento(R$)
+Impostos (R$)
+Adiantamento (R$)
+Entrega extra (R$)
+Outros (R$)
+Preço por KM (calculo automatico, dividir valor do frete pelos km rodados)
+Preço por KG (calculo automatico, valor do frete dividido pelo peso liquido total)

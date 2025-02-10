@@ -1,0 +1,187 @@
+{% extends "index.html" %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Gerenciamento de Usuários</h2>
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalUsuario">
+            <i class="fas fa-plus"></i> Novo Usuário
+        </button>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Usuário</th>
+                            <th>Função</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in users %}
+                        <tr>
+                            <td>{{ user.id }}</td>
+                            <td>{{ user.username }}</td>
+                            <td>{{ user.role }}</td>
+                            <td>
+                                <button type="button" class="btn btn-sm btn-warning" 
+                                        onclick="editarUsuario('{{ user.id }}', '{{ user.username }}', '{{ user.role }}', '{{ user.nome }}')"
+                                        {% if user.username == 'admin' %}disabled{% endif %}>
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button type="button" class="btn btn-sm btn-danger" 
+                                        onclick="excluirUsuario('{{ user.id }}')"
+                                        {% if user.username == 'admin' %}disabled{% endif %}>
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Usuário -->
+<div class="modal fade" id="modalUsuario" tabindex="-1" aria-labelledby="modalUsuarioLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalUsuarioLabel">Novo Usuário</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="formUsuario" onsubmit="salvarUsuario(event)">
+                <input type="hidden" id="usuario_id" name="usuario_id">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="nome" class="form-label">Nome Completo</label>
+                        <input type="text" class="form-control" id="nome" name="nome" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="username" class="form-label">Nome de Usuário</label>
+                        <input type="text" class="form-control" id="username" name="username" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Senha</label>
+                        <input type="password" class="form-control" id="password" name="password">
+                        <small class="text-muted">Deixe em branco para manter a senha atual (ao editar)</small>
+                    </div>
+                    <div class="mb-3">
+                        <label for="role" class="form-label">Função</label>
+                        <select class="form-select" id="role" name="role" required>
+                            <option value="">Selecione uma função</option>
+                            <option value="admin">Administrador</option>
+                            <option value="gerencia">Gerência</option>
+                            <option value="financeiro">Financeiro</option>
+                            <option value="logistica">Logística</option>
+                            <option value="visualizador">Visualizador</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function salvarUsuario(event) {
+    event.preventDefault();
+    
+    const formData = {
+        username: document.getElementById('username').value,
+        password: document.getElementById('password').value,
+        nome: document.getElementById('nome').value,
+        role: document.getElementById('role').value
+    };
+    
+    const usuario_id = document.getElementById('usuario_id').value;
+    const url = usuario_id ? `/usuarios/${usuario_id}/editar` : '/usuarios/adicionar';
+    
+    fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify(formData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert(data.error);
+        } else {
+            alert(data.message);
+            window.location.reload();
+        }
+    })
+    .catch(error => {
+        console.error('Erro:', error);
+        alert('Erro ao salvar usuário');
+    });
+}
+
+function editarUsuario(id, username, role, nome) {
+    document.getElementById('usuario_id').value = id;
+    document.getElementById('username').value = username;
+    document.getElementById('nome').value = nome;
+    document.getElementById('role').value = role;
+    document.getElementById('password').value = '';
+    
+    document.getElementById('modalUsuarioLabel').textContent = 'Editar Usuário';
+    new bootstrap.Modal(document.getElementById('modalUsuario')).show();
+}
+
+function excluirUsuario(id) {
+    if (confirm('Tem certeza que deseja excluir este usuário?')) {
+        fetch(`/usuarios/${id}/excluir`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert(data.error);
+            } else {
+                alert(data.message);
+                window.location.reload();
+            }
+        })
+        .catch(error => {
+            console.error('Erro:', error);
+            alert('Erro ao excluir usuário');
+        });
+    }
+}
+
+// Limpar formulário quando o modal for fechado
+document.getElementById('modalUsuario').addEventListener('hidden.bs.modal', function () {
+    document.getElementById('formUsuario').reset();
+    document.getElementById('usuario_id').value = '';
+    document.getElementById('modalUsuarioLabel').textContent = 'Adicionar Usuário';
+});
+</script>
+{% endblock %}

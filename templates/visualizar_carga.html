@@ -1,0 +1,809 @@
+{% extends "index.html" %}
+
+{% block content %}
+<!-- Área de visualização normal -->
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Visualizar Carga #{{ carga.carga }}</h1>
+        <div class="btn-group">
+            <button onclick="window.print()" class="btn btn-primary">
+                <i class="fas fa-print"></i> Imprimir
+            </button>
+
+            {% if current_user.is_gerente %}
+                <a href="{{ url_for('editar_carga', carga_id=carga.id) }}" class="btn btn-warning">
+                    <i class="fas fa-edit"></i> Editar
+                </a>
+                <a href="{{ url_for('logistica', carga_id=carga.id) }}" class="btn btn-primary">
+                    <i class="fas fa-truck"></i> Logística
+                </a>
+                <a href="{{ url_for('financeiro', carga_id=carga.id) }}" class="btn btn-success">
+                    <i class="fas fa-dollar-sign"></i> Financeiro
+                </a>
+                <a href="{{ url_for('gerencia', carga_id=carga.id) }}" class="btn btn-secondary">
+                    <i class="fas fa-cog"></i> Gerência
+                </a>
+            {% elif current_user.can_edit %}
+                {% if current_user.is_logistica %}
+                <a href="{{ url_for('logistica', carga_id=carga.id) }}" class="btn btn-primary">
+                    <i class="fas fa-truck"></i> Logística
+                </a>
+                {% endif %}
+                {% if current_user.is_financeiro %}
+                <a href="{{ url_for('financeiro', carga_id=carga.id) }}" class="btn btn-success">
+                    <i class="fas fa-dollar-sign"></i> Financeiro
+                </a>
+                {% endif %}
+            {% endif %}
+
+            <a href="{{ url_for('lista_cargas') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Voltar
+            </a>
+        </div>
+    </div>
+
+    <div class="view-content">
+        <table class="table table-bordered">
+            <tr>
+                <td colspan="4" class="bg-light"><h4 class="m-0">DADOS DA CARGA {{ carga.carga }}</h4></td>
+            </tr>
+            <tr>
+                <td><strong>Status:</strong> {{ carga.status }}</td>
+                <td><strong>Rota:</strong> {{ carga.rota }}</td>
+                <td><strong>NFS/CTE:</strong> {{ carga.nfs_cte }}</td>
+                <td><strong>NF:</strong> {{ carga.nf }}</td>
+            </tr>
+            <tr>
+                <td><strong>Transportadora:</strong> {{ carga.transportadora.nome if carga.transportadora else '-' }}</td>
+                <td><strong>Veículo:</strong> {{ carga.veiculo.placa if carga.veiculo else '-' }}</td>
+                <td colspan="2"><strong>Motorista:</strong> {{ carga.motorista }}</td>
+            </tr>
+            <tr>
+                <td><strong>Data Saída:</strong> {{ carga.data_saida.strftime('%d/%m/%Y') if carga.data_saida }}</td>
+                <td><strong>Hora Saída:</strong> {{ carga.hora_saida.strftime('%H:%M') if carga.hora_saida }}</td>
+                <td><strong>Data Chegada:</strong> {{ carga.data_chegada.strftime('%d/%m/%Y') if carga.data_chegada }}</td>
+                <td><strong>Hora Chegada:</strong> {{ carga.hora_chegada.strftime('%H:%M') if carga.hora_chegada }}</td>
+            </tr>
+            <tr>
+                <td><strong>KM Inicial:</strong> {{ carga.km_inicial }}</td>
+                <td><strong>KM Final:</strong> {{ carga.km_final }}</td>
+                <td colspan="2"><strong>KM Total:</strong> {{ carga.km_total }}</td>
+            </tr>
+            <tr>
+                <td><strong>Peso Total:</strong> {{ "%.2f"|format(carga.peso_total or 0) }} kg</td>
+                <td><strong>Distância Total:</strong> {{ "%.2f"|format(carga.distancia_total or 0) }} km</td>
+                <td><strong>Valor Frete:</strong> R$ {{ "%.2f"|format(carga.valor_frete or 0) }}</td>
+                <td><strong>Preço/kg:</strong> R$ {{ "%.2f"|format(carga.calcular_preco_por_kg()) }}</td>
+            </tr>
+            {% if carga.observacoes %}
+            <tr>
+                <td colspan="4"><strong>Observações:</strong> {{ carga.observacoes }}</td>
+            </tr>
+            {% endif %}
+        </table>
+
+        {% if carga.romaneios %}
+        <table class="table table-bordered mt-4">
+            <tr>
+                <td colspan="4" class="bg-light"><h4 class="m-0">ROMANEIO</h4></td>
+            </tr>
+            {% for romaneio in carga.romaneios %}
+            <tr>
+                <td><strong>Nota:</strong> {{ romaneio.nota }}</td>
+                <td><strong>Cliente:</strong> {{ romaneio.cliente.nome if romaneio.cliente else '' }}</td>
+                <td><strong>Cond. Pagto:</strong> {{ romaneio.condicoes_pagamento }}</td>
+                <td><strong>Forma Pagto:</strong> {{ romaneio.forma_pagamento }}</td>
+            </tr>
+            <tr>
+                <td><strong>Qtd. Embalagens:</strong> {{ romaneio.qtd_embalagens }}</td>
+                <td><strong>Peso Bruto:</strong> {{ romaneio.peso_bruto }}</td>
+                <td colspan="2"><strong>Valor Líquido:</strong> <span class="valor-monetario-romaneio">{{ romaneio.valor_liquido }}</span></td>
+            </tr>
+            {% endfor %}
+            <tr class="bg-light">
+                <td><strong>Total Embalagens:</strong> {% set total_emb = namespace(value=0) %}
+                {% for romaneio in carga.romaneios %}
+                    {% set total_emb.value = total_emb.value + romaneio.qtd_embalagens %}
+                {% endfor %}
+                {{ total_emb.value }}</td>
+                <td><strong>Peso Bruto Total:</strong> {% set total_peso = namespace(value=0) %}
+                {% for romaneio in carga.romaneios %}
+                    {% set total_peso.value = total_peso.value + romaneio.peso_bruto %}
+                {% endfor %}
+                {{ total_peso.value }}</td>
+                <td colspan="2"><strong>Valor Total:</strong> <span class="valor-monetario-romaneio">{{ total_romaneios }}</span></td>
+            </tr>
+            {% if saldo_pagar is defined %}
+            <tr class="bg-light">
+                <td colspan="4" class="text-end">
+                    <strong>Saldo a Pagar:</strong> <span class="valor-monetario">{{ saldo_pagar }}</span>
+                </td>
+            </tr>
+            {% endif %}
+        </table>
+        {% endif %}
+
+        {% if devolucoes %}
+        <table class="table table-bordered mt-4">
+            <tr>
+                <td colspan="4" class="bg-light"><h4 class="m-0">DEVOLUÇÕES</h4></td>
+            </tr>
+            {% for devolucao in devolucoes %}
+            {% if devolucao.aprovado %}
+            <tr>
+                <td><strong>NFe:</strong> {{ devolucao.numero_nfe }}</td>
+                <td><strong>Tipo Mov.:</strong> {{ devolucao.tipo_movimento }}</td>
+                <td><strong>Data:</strong> {{ devolucao.data_devolucao.strftime('%d/%m/%Y') }}</td>
+                <td><strong>Status:</strong> <span class="badge bg-success">Aprovado</span></td>
+            </tr>
+            <tr>
+                <td><strong>Qtd. Embalagens:</strong> {{ devolucao.qtd_embalagens }}</td>
+                <td><strong>Peso:</strong> {{ devolucao.peso_devolvido }}</td>
+                <td colspan="2"><strong>Valor:</strong> <span class="valor-monetario-devolucao">{{ devolucao.valor_mercadoria }}</span></td>
+            </tr>
+            {% endif %}
+            {% endfor %}
+            <tr class="bg-light">
+                <td><strong>Total Embalagens:</strong> {% set total_dev_emb = namespace(value=0) %}
+                {% for devolucao in devolucoes %}
+                    {% if devolucao.aprovado %}
+                    {% set total_dev_emb.value = total_dev_emb.value + devolucao.qtd_embalagens %}
+                    {% endif %}
+                {% endfor %}
+                {{ total_dev_emb.value }}</td>
+                <td><strong>Peso Total:</strong> {% set total_dev_peso = namespace(value=0) %}
+                {% for devolucao in devolucoes %}
+                    {% if devolucao.aprovado %}
+                    {% set total_dev_peso.value = total_dev_peso.value + devolucao.peso_devolvido %}
+                    {% endif %}
+                {% endfor %}
+                {{ total_dev_peso.value }}</td>
+                <td colspan="2"><strong>Valor Total:</strong> {% set total_dev_valor = namespace(value=0) %}
+                {% for devolucao in devolucoes %}
+                    {% if devolucao.aprovado %}
+                    {% set total_dev_valor.value = total_dev_valor.value + devolucao.valor_mercadoria %}
+                    {% endif %}
+                {% endfor %}
+                <span class="valor-monetario-devolucao">{{ total_dev_valor.value }}</span></td>
+            </tr>
+        </table>
+        {% endif %}
+
+        {% if carga.romaneios or devolucoes %}
+        <table class="table table-bordered mt-4">
+            <tr>
+                <td colspan="4" class="bg-light"><h4 class="m-0">TOTAIS FINAIS</h4></td>
+            </tr>
+            <tr class="bg-light">
+                <td><strong>Total Embalagens Final:</strong>
+                {% set total_emb = namespace(value=0) %}
+                {% for romaneio in carga.romaneios %}
+                    {% set total_emb.value = total_emb.value + romaneio.qtd_embalagens %}
+                {% endfor %}
+                {% for devolucao in devolucoes %}
+                    {% if devolucao.aprovado %}
+                    {% set total_emb.value = total_emb.value - devolucao.qtd_embalagens %}
+                    {% endif %}
+                {% endfor %}
+                {{ total_emb.value }}</td>
+                <td><strong>Peso Bruto Final:</strong>
+                {% set total_peso = namespace(value=0) %}
+                {% for romaneio in carga.romaneios %}
+                    {% set total_peso.value = total_peso.value + romaneio.peso_bruto %}
+                {% endfor %}
+                {% for devolucao in devolucoes %}
+                    {% if devolucao.aprovado %}
+                    {% set total_peso.value = total_peso.value - devolucao.peso_devolvido %}
+                    {% endif %}
+                {% endfor %}
+                {{ total_peso.value }}</td>
+                <td colspan="2"><strong>Valor Total Final:</strong>
+                {% set total_valor = namespace(value=0) %}
+                {% for romaneio in carga.romaneios %}
+                    {% set total_valor.value = total_valor.value + romaneio.valor_liquido %}
+                {% endfor %}
+                {% for devolucao in devolucoes %}
+                    {% if devolucao.aprovado %}
+                    {% set total_valor.value = total_valor.value - devolucao.valor_mercadoria %}
+                    {% endif %}
+                {% endfor %}
+                <span class="valor-monetario">{{ total_valor.value }}</span></td>
+            </tr>
+        </table>
+        {% endif %}
+
+        {% if carga.resumo_movimentos %}
+        <table class="table table-bordered mt-4">
+            <tr>
+                <td colspan="2" class="bg-light"><h4 class="m-0">RESUMO POR TIPO DE MOVIMENTO</h4></td>
+            </tr>
+            {% if carga.resumo_movimentos %}
+            <tr>
+                <th>Código</th>
+                <th>Tipo de Movimento</th>
+            </tr>
+            {% for movimento in carga.resumo_movimentos %}
+            <tr>
+                <td>{{ movimento.codigo }}</td>
+                <td>{{ movimento.tipo_movimento }}</td>
+            </tr>
+            {% endfor %}
+            {% endif %}
+        </table>
+        {% endif %}
+
+        {% if carga.controle_frete %}
+        <table class="table table-bordered mt-4">
+            <tr>
+                <td colspan="4" class="bg-light"><h4 class="m-0">CONTROLE DE FRETE</h4></td>
+            </tr>
+            <tr>
+                <td><strong>Tipo:</strong> {{ carga.controle_frete.tipo_frete }}</td>
+                <td><strong>Origem:</strong> {{ carga.controle_frete.origem }}</td>
+                <td><strong>KM Rodados:</strong> {{ carga.controle_frete.km_rodados }}</td>
+                <td><strong>Valor Frete:</strong> <span class="valor-monetario">{{ carga.controle_frete.valor_frete }}</span></td>
+            </tr>
+            <tr>
+                <td><strong>Abastecimento:</strong> <span class="valor-monetario">{{ carga.controle_frete.abastecimento }}</span></td>
+                <td><strong>Impostos:</strong> <span class="valor-monetario">{{ carga.controle_frete.impostos }}</span></td>
+                <td><strong>Adiantamento:</strong> <span class="valor-monetario">{{ carga.controle_frete.adiantamento }}</span></td>
+                <td><strong>Entrega Extra:</strong> <span class="valor-monetario">{{ carga.controle_frete.entrega_extra }}</span></td>
+            </tr>
+            <tr>
+                <td><strong>Outros (R$):</strong> <span class="valor-monetario">{{ carga.controle_frete.outros }}</span></td>
+                <td><strong>Preço por KM :</strong> <span class="valor-monetario">{{ carga.controle_frete.preco_km }}</span></td>
+                <td colspan="2"><strong>Preço por KG:</strong> <span class="valor-monetario">{{ carga.calcular_preco_por_kg() }}</span></td>
+            </tr>
+        </table>
+        {% endif %}
+
+        {% if carga.recebimentos or carga.despesas %}
+        <table class="table table-bordered mt-4">
+            <tr>
+                <td colspan="4" class="bg-light"><h4 class="m-0">FINANCEIRO</h4></td>
+            </tr>
+            {% if carga.recebimentos %}
+            <tr>
+                <td colspan="4" class="bg-light"><h5 class="m-0">Recebimentos</h5></td>
+            </tr>
+            {% for recebimento in carga.recebimentos %}
+            <tr>
+                <td><strong>Forma:</strong> {{ recebimento.forma_pagamento }}</td>
+                <td><strong>Valor:</strong> <span class="valor-monetario">{{ recebimento.valor }}</span></td>
+                <td colspan="2"><strong>Obs:</strong> {{ recebimento.observacoes }}</td>
+            </tr>
+            {% endfor %}
+            {% endif %}
+
+            {% if carga.despesas %}
+            <tr>
+                <td colspan="4" class="bg-light"><h5 class="m-0">Despesas</h5></td>
+            </tr>
+            {% for despesa in carga.despesas %}
+            <tr>
+                <td><strong>Tipo:</strong> {{ despesa.descricao }}</td>
+                <td><strong>Valor:</strong> <span class="valor-monetario">{{ despesa.valor }}</span></td>
+                <td colspan="2"><strong>Obs:</strong> {{ despesa.observacoes }}</td>
+            </tr>
+            {% endfor %}
+            {% endif %}
+        </table>
+        {% endif %}
+
+        {% if carga.logistica %}
+        <table class="table table-bordered mt-4">
+            <tr>
+                <td colspan="4" class="bg-light"><h4 class="m-0">LOGÍSTICA</h4></td>
+            </tr>
+            <tr>
+                <td><strong>Descarga:</strong> <span class="valor-monetario">{{ carga.logistica.descarga }}</span></td>
+                <td><strong>Data Entrega:</strong> {{ carga.logistica.data_entrega.strftime('%d/%m/%Y') if carga.logistica.data_entrega }}</td>
+                <td colspan="2"><strong>Observações:</strong> {{ carga.logistica.observacoes }}</td>
+            </tr>
+            <tr>
+                <td colspan="4"><strong>Pendências:</strong> {{ carga.logistica.pendencias }}</td>
+            </tr>
+        </table>
+        {% endif %}
+
+        {% if carga.gerencia %}
+        <table class="table table-bordered mt-4">
+            <tr>
+                <td colspan="4" class="bg-light"><h4 class="m-0">GERÊNCIA</h4></td>
+            </tr>
+            <tr>
+                <td><strong>Diárias:</strong> <span class="valor-monetario-gerencia">{{ carga.gerencia.diarias }}</span></td>
+                <td><strong>Valor Total:</strong> <span class="valor-monetario-gerencia">{{ carga.gerencia.valor_total }}</span></td>
+                <td><strong>Deduções:</strong> <span class="valor-monetario-gerencia">{{ total_despesas }}</span></td>
+                <td><strong>Valor a Pagar:</strong> <span class="valor-monetario-gerencia">{{ carga.gerencia.valor_total - total_despesas }}</span></td>
+            </tr>
+            <tr>
+                <td colspan="4"><strong>Observações:</strong> {{ carga.gerencia.observacoes }}</td>
+            </tr>
+            {% if carga.gerencia.assinatura %}
+            <tr>
+                <td colspan="2"><strong>Status:</strong> {{ carga.gerencia.status }}</td>
+                <td colspan="2"><strong>Data Assinatura:</strong> {{ carga.gerencia.data_assinatura.strftime('%d/%m/%Y %H:%M') if carga.gerencia.data_assinatura }}</td>
+            </tr>
+            {% endif %}
+        </table>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Layout específico para impressão -->
+<div class="print-only">
+    <table class="print-table">
+        <tr>
+            <td colspan="4" class="print-header">DADOS DA CARGA {{ carga.carga }}</td>
+        </tr>
+        <tr>
+            <td><strong>Status:</strong> {{ carga.status }}</td>
+            <td><strong>Rota:</strong> {{ carga.rota }}</td>
+            <td><strong>NFS/CTE:</strong> {{ carga.nfs_cte }}</td>
+            <td><strong>NF:</strong> {{ carga.nf }}</td>
+        </tr>
+        <tr>
+            <td><strong>Transportadora:</strong> {{ carga.transportadora.nome if carga.transportadora else '-' }}</td>
+            <td><strong>Veículo:</strong> {{ carga.veiculo.placa if carga.veiculo else '-' }}</td>
+            <td colspan="2"><strong>Motorista:</strong> {{ carga.motorista }}</td>
+        </tr>
+        <tr>
+            <td><strong>Data Saída:</strong> {{ carga.data_saida.strftime('%d/%m/%Y') if carga.data_saida }}</td>
+            <td><strong>Hora Saída:</strong> {{ carga.hora_saida.strftime('%H:%M') if carga.hora_saida }}</td>
+            <td><strong>Data Chegada:</strong> {{ carga.data_chegada.strftime('%d/%m/%Y') if carga.data_chegada }}</td>
+            <td><strong>Hora Chegada:</strong> {{ carga.hora_chegada.strftime('%H:%M') if carga.hora_chegada }}</td>
+        </tr>
+        <tr>
+            <td><strong>KM Inicial:</strong> {{ carga.km_inicial }}</td>
+            <td><strong>KM Final:</strong> {{ carga.km_final }}</td>
+            <td colspan="2"><strong>KM Total:</strong> {{ carga.km_total }}</td>
+        </tr>
+        <tr>
+            <td><strong>Peso Total:</strong> {{ "%.2f"|format(carga.peso_total or 0) }} kg</td>
+            <td><strong>Distância Total:</strong> {{ "%.2f"|format(carga.distancia_total or 0) }} km</td>
+            <td><strong>Valor Frete:</strong> R$ {{ "%.2f"|format(carga.valor_frete or 0) }}</td>
+            <td><strong>Preço/kg:</strong> R$ {{ "%.2f"|format(carga.calcular_preco_por_kg()) }}</td>
+        </tr>
+        {% if carga.observacoes %}
+        <tr>
+            <td colspan="4"><strong>Observações:</strong> {{ carga.observacoes }}</td>
+        </tr>
+        {% endif %}
+    </table>
+
+    {% if carga.romaneios %}
+    <table class="print-table">
+        <tr>
+            <td colspan="4" class="print-header">ROMANEIO</td>
+        </tr>
+        {% for romaneio in carga.romaneios %}
+        <tr>
+            <td><strong>Nota:</strong> {{ romaneio.nota }}</td>
+            <td><strong>Cliente:</strong> {{ romaneio.cliente.nome if romaneio.cliente else '' }}</td>
+            <td><strong>Cond. Pagto:</strong> {{ romaneio.condicoes_pagamento }}</td>
+            <td><strong>Forma Pagto:</strong> {{ romaneio.forma_pagamento }}</td>
+        </tr>
+        <tr>
+            <td><strong>Qtd. Embalagens:</strong> {{ romaneio.qtd_embalagens }}</td>
+            <td><strong>Peso Bruto:</strong> {{ romaneio.peso_bruto }}</td>
+            <td colspan="2"><strong>Valor Líquido:</strong> <span class="valor-monetario-romaneio">{{ romaneio.valor_liquido }}</span></td>
+        </tr>
+        {% endfor %}
+        <tr class="bg-light">
+            <td><strong>Total Embalagens:</strong> {% set total_emb = namespace(value=0) %}
+            {% for romaneio in carga.romaneios %}
+                {% set total_emb.value = total_emb.value + romaneio.qtd_embalagens %}
+            {% endfor %}
+            {{ total_emb.value }}</td>
+            <td><strong>Peso Bruto Total:</strong> {% set total_peso = namespace(value=0) %}
+            {% for romaneio in carga.romaneios %}
+                {% set total_peso.value = total_peso.value + romaneio.peso_bruto %}
+            {% endfor %}
+            {{ total_peso.value }}</td>
+            <td colspan="2"><strong>Valor Total:</strong> <span class="valor-monetario-romaneio">{{ total_romaneios }}</span></td>
+        </tr>
+        {% if saldo_pagar is defined %}
+        <tr class="bg-light">
+            <td colspan="4" class="text-end">
+                <strong>Saldo a Pagar:</strong> <span class="valor-monetario">{{ saldo_pagar }}</span>
+            </td>
+        </tr>
+        {% endif %}
+    </table>
+    {% endif %}
+
+    {% if devolucoes %}
+    <table class="print-table">
+        <tr>
+            <td colspan="4" class="print-header">DEVOLUÇÕES</td>
+        </tr>
+        {% for devolucao in devolucoes %}
+        {% if devolucao.aprovado %}
+        <tr>
+            <td><strong>NFe:</strong> {{ devolucao.numero_nfe }}</td>
+            <td><strong>Tipo Mov.:</strong> {{ devolucao.tipo_movimento }}</td>
+            <td><strong>Data:</strong> {{ devolucao.data_devolucao.strftime('%d/%m/%Y') }}</td>
+            <td><strong>Status:</strong> <span class="badge bg-success">Aprovado</span></td>
+        </tr>
+        <tr>
+            <td><strong>Qtd. Embalagens:</strong> {{ devolucao.qtd_embalagens }}</td>
+            <td><strong>Peso:</strong> {{ devolucao.peso_devolvido }}</td>
+            <td colspan="2"><strong>Valor:</strong> <span class="valor-monetario-devolucao">{{ devolucao.valor_mercadoria }}</span></td>
+        </tr>
+        {% endif %}
+        {% endfor %}
+        <tr class="bg-light">
+            <td><strong>Total Embalagens:</strong> {% set total_dev_emb = namespace(value=0) %}
+            {% for devolucao in devolucoes %}
+                {% if devolucao.aprovado %}
+                {% set total_dev_emb.value = total_dev_emb.value + devolucao.qtd_embalagens %}
+                {% endif %}
+            {% endfor %}
+            {{ total_dev_emb.value }}</td>
+            <td><strong>Peso Total:</strong> {% set total_dev_peso = namespace(value=0) %}
+            {% for devolucao in devolucoes %}
+                {% if devolucao.aprovado %}
+                {% set total_dev_peso.value = total_dev_peso.value + devolucao.peso_devolvido %}
+                {% endif %}
+            {% endfor %}
+            {{ total_dev_peso.value }}</td>
+            <td colspan="2"><strong>Valor Total:</strong> {% set total_dev_valor = namespace(value=0) %}
+            {% for devolucao in devolucoes %}
+                {% if devolucao.aprovado %}
+                {% set total_dev_valor.value = total_dev_valor.value + devolucao.valor_mercadoria %}
+                {% endif %}
+            {% endfor %}
+            <span class="valor-monetario-devolucao">{{ total_dev_valor.value }}</span></td>
+        </tr>
+    </table>
+    {% endif %}
+
+    {% if carga.romaneios or devolucoes %}
+    <table class="print-table">
+        <tr>
+            <td colspan="4" class="print-header">TOTAIS FINAIS</td>
+        </tr>
+        <tr>
+            <td><strong>Total Embalagens Final:</strong>
+            {% set total_emb = namespace(value=0) %}
+            {% for romaneio in carga.romaneios %}
+                {% set total_emb.value = total_emb.value + romaneio.qtd_embalagens %}
+            {% endfor %}
+            {% for devolucao in devolucoes %}
+                {% if devolucao.aprovado %}
+                {% set total_emb.value = total_emb.value - devolucao.qtd_embalagens %}
+                {% endif %}
+            {% endfor %}
+            {{ total_emb.value }}</td>
+            <td><strong>Peso Bruto Final:</strong>
+            {% set total_peso = namespace(value=0) %}
+            {% for romaneio in carga.romaneios %}
+                {% set total_peso.value = total_peso.value + romaneio.peso_bruto %}
+            {% endfor %}
+            {% for devolucao in devolucoes %}
+                {% if devolucao.aprovado %}
+                {% set total_peso.value = total_peso.value - devolucao.peso_devolvido %}
+                {% endif %}
+            {% endfor %}
+            {{ total_peso.value }}</td>
+            <td colspan="2"><strong>Valor Total Final:</strong>
+            {% set total_valor = namespace(value=0) %}
+            {% for romaneio in carga.romaneios %}
+                {% set total_valor.value = total_valor.value + romaneio.valor_liquido %}
+            {% endfor %}
+            {% for devolucao in devolucoes %}
+                {% if devolucao.aprovado %}
+                {% set total_valor.value = total_valor.value - devolucao.valor_mercadoria %}
+                {% endif %}
+            {% endfor %}
+            <span class="valor-monetario">{{ total_valor.value }}</span></td>
+        </tr>
+    </table>
+    {% endif %}
+
+    {% if carga.resumo_movimentos %}
+    <table class="print-table mt-4">
+        <tr>
+            <td colspan="2" class="print-header">RESUMO POR TIPO DE MOVIMENTO</td>
+        </tr>
+        {% if carga.resumo_movimentos %}
+        <tr>
+            <th>Código</th>
+            <th>Tipo de Movimento</th>
+        </tr>
+        {% for movimento in carga.resumo_movimentos %}
+        <tr>
+            <td>{{ movimento.codigo }}</td>
+            <td>{{ movimento.tipo_movimento }}</td>
+        </tr>
+        {% endfor %}
+        {% endif %}
+    </table>
+    {% endif %}
+
+    {% if carga.controle_frete %}
+    <table class="print-table">
+        <tr>
+            <td colspan="4" class="print-header">CONTROLE DE FRETE</td>
+        </tr>
+        <tr>
+            <td><strong>Tipo:</strong> {{ carga.controle_frete.tipo_frete }}</td>
+            <td><strong>Origem:</strong> {{ carga.controle_frete.origem }}</td>
+            <td><strong>KM Rodados:</strong> {{ carga.controle_frete.km_rodados }}</td>
+            <td><strong>Valor Frete:</strong> <span class="valor-monetario">{{ carga.controle_frete.valor_frete }}</span></td>
+        </tr>
+        <tr>
+            <td><strong>Abastecimento:</strong> <span class="valor-monetario">{{ carga.controle_frete.abastecimento }}</span></td>
+            <td><strong>Impostos:</strong> <span class="valor-monetario">{{ carga.controle_frete.impostos }}</span></td>
+            <td><strong>Adiantamento:</strong> <span class="valor-monetario">{{ carga.controle_frete.adiantamento }}</span></td>
+            <td><strong>Entrega Extra:</strong> <span class="valor-monetario">{{ carga.controle_frete.entrega_extra }}</span></td>
+        </tr>
+        <tr>
+            <td><strong>Outros (R$):</strong> <span class="valor-monetario">{{ carga.controle_frete.outros }}</span></td>
+            <td><strong>Preço por KM :</strong> <span class="valor-monetario">{{ carga.controle_frete.preco_km }}</span></td>
+            <td colspan="2"><strong>Preço por KG:</strong> <span class="valor-monetario">{{ carga.calcular_preco_por_kg() }}</span></td>
+        </tr>
+    </table>
+    {% endif %}
+
+    {% if carga.recebimentos or carga.despesas %}
+    <table class="print-table">
+        <tr>
+            <td colspan="4" class="print-header">FINANCEIRO</td>
+        </tr>
+        {% if carga.recebimentos %}
+        <tr>
+            <td colspan="4" class="print-subheader">Recebimentos</td>
+        </tr>
+        {% for recebimento in carga.recebimentos %}
+        <tr>
+            <td><strong>Forma:</strong> {{ recebimento.forma_pagamento }}</td>
+            <td><strong>Valor:</strong> <span class="valor-monetario">{{ recebimento.valor }}</span></td>
+            <td colspan="2"><strong>Obs:</strong> {{ recebimento.observacoes }}</td>
+        </tr>
+        {% endfor %}
+        {% endif %}
+
+        {% if carga.despesas %}
+        <tr>
+            <td colspan="4" class="print-subheader">Despesas</td>
+        </tr>
+        {% for despesa in carga.despesas %}
+        <tr>
+            <td><strong>Tipo:</strong> {{ despesa.descricao }}</td>
+            <td><strong>Valor:</strong> <span class="valor-monetario">{{ despesa.valor }}</span></td>
+            <td colspan="2"><strong>Obs:</strong> {{ despesa.observacoes }}</td>
+        </tr>
+        {% endfor %}
+        {% endif %}
+    </table>
+    {% endif %}
+
+    {% if carga.logistica %}
+    <table class="print-table">
+        <tr>
+            <td colspan="4" class="print-header">LOGÍSTICA</td>
+        </tr>
+        <tr>
+            <td><strong>Descarga:</strong> <span class="valor-monetario">{{ carga.logistica.descarga }}</span></td>
+            <td><strong>Data Entrega:</strong> {{ carga.logistica.data_entrega.strftime('%d/%m/%Y') if carga.logistica.data_entrega }}</td>
+            <td colspan="2"><strong>Observações:</strong> {{ carga.logistica.observacoes }}</td>
+        </tr>
+        <tr>
+            <td colspan="4"><strong>Pendências:</strong> {{ carga.logistica.pendencias }}</td>
+        </tr>
+    </table>
+    {% endif %}
+
+    {% if carga.gerencia %}
+    <table class="print-table">
+        <tr>
+            <td colspan="4" class="print-header">GERÊNCIA</td>
+        </tr>
+        <tr>
+            <td><strong>Diárias:</strong> <span class="valor-monetario-gerencia">{{ carga.gerencia.diarias }}</span></td>
+            <td><strong>Valor Total:</strong> <span class="valor-monetario-gerencia">{{ carga.gerencia.valor_total }}</span></td>
+            <td><strong>Deduções:</strong> <span class="valor-monetario-gerencia">{{ total_despesas }}</span></td>
+            <td><strong>Valor a Pagar:</strong> <span class="valor-monetario-gerencia">{{ carga.gerencia.valor_total - total_despesas }}</span></td>
+        </tr>
+        <tr>
+            <td colspan="4"><strong>Observações:</strong> {{ carga.gerencia.observacoes }}</td>
+        </tr>
+        {% if carga.gerencia.assinatura %}
+        <tr>
+            <td colspan="2"><strong>Status:</strong> {{ carga.gerencia.status }}</td>
+            <td colspan="2"><strong>Data Assinatura:</strong> {{ carga.gerencia.data_assinatura.strftime('%d/%m/%Y %H:%M') if carga.gerencia.data_assinatura }}</td>
+        </tr>
+        {% endif %}
+    </table>
+    {% endif %}
+
+    <div class="print-only" style="text-align: center; margin-top: 30px;">
+        <div style="display: inline-block; border-top: 1px solid #000; padding-top: 5px; min-width: 200px;">
+            Diretoria
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Estilos para visualização normal */
+    .view-content {
+        margin-bottom: 2rem;
+    }
+
+    .table {
+        margin-bottom: 0;
+    }
+
+    .bg-light {
+        background-color: #f8f9fa !important;
+    }
+
+    .print-only {
+        display: none;
+    }
+
+    /* Estilos para impressão */
+    @media print {
+        @page {
+            size: landscape;
+            margin: 5mm;
+        }
+
+        body {
+            font-size: 8pt;
+            line-height: 1.1;
+        }
+
+        /* Destacar a primeira linha (DADOS DA CARGA) da primeira tabela */
+        .print-table:nth-of-type(1) tr:first-of-type td {
+            background-color: #000 !important;
+            color: #fff !important;
+            font-weight: bold !important;
+        }
+
+        /* Destacar a célula inteira da transportadora */
+        .print-table:nth-of-type(1) tr:nth-child(3) td:first-child {
+            background-color: #000 !important;
+            color: #fff !important;
+            font-weight: bold !important;
+        }
+
+        /* Ocultar elementos na impressão */
+        .view-content,
+        .btn,
+        .d-flex,
+        .sidebar,
+        #sidebar,
+        nav,
+        .nav-item,
+        .nav-link {
+            display: none !important;
+        }
+
+        /* Garantir que o menu lateral não apareça */
+        aside, 
+        [class*="sidebar"],
+        [id*="sidebar"],
+        .nav-sidebar,
+        .main-sidebar {
+            display: none !important;
+            width: 0 !important;
+            height: 0 !important;
+            position: absolute !important;
+            visibility: hidden !important;
+        }
+
+        /* Ajustar o conteúdo principal */
+        .content-wrapper,
+        .main-content,
+        .content {
+            margin-left: 0 !important;
+            padding-left: 0 !important;
+            width: 100% !important;
+        }
+
+        .print-only {
+            display: block !important;
+        }
+
+        .print-table {
+            width: 100%;
+            margin-bottom: 5px;
+            border-collapse: collapse;
+            page-break-inside: avoid;
+        }
+
+        .print-table td {
+            padding: 2px 4px;
+            border: 1px solid #000;
+            vertical-align: top;
+        }
+
+        .print-header {
+            background-color: #f0f0f0 !important;
+            font-weight: bold;
+            font-size: 9pt;
+            text-align: center;
+            padding: 3px !important;
+        }
+
+        .print-subheader {
+            background-color: #f8f8f8 !important;
+            font-weight: bold;
+            text-align: left;
+            padding: 2px 4px !important;
+        }
+
+        strong {
+            font-weight: bold;
+            color: #444;
+        }
+
+        /* Forçar cores na impressão */
+        * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+
+        /* Estilo do status para impressão */
+        .badge {
+            color: black !important;
+            background-color: transparent !important;
+            border: 1px solid black;
+            padding: 5px 10px;
+            font-weight: bold;
+        }
+
+        /* Esconder botões na impressão */
+        .btn {
+            display: none !important;
+        }
+    }
+</style>
+
+<script>
+    // Função para formatar valores monetários
+    const formatarMoeda = (valor) => {
+        if (valor === null || valor === undefined) return 'R$ 0,00';
+        // Converte para número e garante que seja tratado como float
+        const numero = parseFloat(valor);
+        if (isNaN(numero)) return 'R$ 0,00';
+        // Formata o número com duas casas decimais
+        return `R$ ${numero.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    };
+
+    // Formatar todos os valores monetários
+    document.addEventListener('DOMContentLoaded', function() {
+        // Formatar valores dos romaneios
+        document.querySelectorAll('.valor-monetario-romaneio').forEach(elemento => {
+            const valor = parseFloat(elemento.textContent);
+            elemento.textContent = formatarMoeda(valor);
+        });
+        
+        // Formatar valores das devoluções
+        document.querySelectorAll('.valor-monetario-devolucao').forEach(elemento => {
+            const valor = parseFloat(elemento.textContent);
+            elemento.textContent = formatarMoeda(valor);
+        });
+
+        // Formatar valores da gerência
+        document.querySelectorAll('.valor-monetario-gerencia').forEach(elemento => {
+            const valor = parseFloat(elemento.textContent);
+            elemento.textContent = formatarMoeda(valor);
+        });
+
+        // Formatar outros valores monetários
+        document.querySelectorAll('.valor-monetario').forEach(elemento => {
+            const valor = parseFloat(elemento.textContent);
+            elemento.textContent = formatarMoeda(valor);
+        });
+    });
+</script>
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/visualizar_carga.js') }}"></script>
+{% endblock %}
+
+{% endblock %}

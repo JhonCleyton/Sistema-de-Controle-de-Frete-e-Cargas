@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>Veículos do SISLOG</h2>
+                <a href="{{ url_for('sislog.adicionar_veiculo') }}" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Novo Veículo
+                </a>
+            </div>
+
+            <!-- Mensagens de erro/sucesso -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Placa</th>
+                            <th>Modelo</th>
+                            <th>Marca</th>
+                            <th>Ano</th>
+                            <th>Capacidade (kg)</th>
+                            <th>Tipo</th>
+                            <th>Status</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for veiculo in veiculos %}
+                        <tr>
+                            <td>{{ veiculo.placa }}</td>
+                            <td>{{ veiculo.modelo }}</td>
+                            <td>{{ veiculo.marca }}</td>
+                            <td>{{ veiculo.ano }}</td>
+                            <td>{{ "%.2f"|format(veiculo.capacidade) }}</td>
+                            <td>{{ veiculo.tipo }}</td>
+                            <td>
+                                <span class="badge {% if veiculo.status == 'disponível' %}bg-success
+                                    {% elif veiculo.status == 'em_viagem' %}bg-primary
+                                    {% elif veiculo.status == 'manutencao' %}bg-warning
+                                    {% else %}bg-secondary{% endif %}">
+                                    {{ veiculo.status }}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="btn-group" role="group">
+                                    <a href="#" class="btn btn-sm btn-primary" onclick="editarVeiculo({{ veiculo.id }})">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <form action="{{ url_for('sislog.excluir_veiculo', id=veiculo.id) }}" method="POST" class="d-inline" 
+                                          onsubmit="return confirm('Tem certeza que deseja excluir este veículo?');">
+                                        <button type="submit" class="btn btn-sm btn-danger">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function editarVeiculo(id) {
+    // Implementar edição de veículo
+    alert('Funcionalidade de edição será implementada em breve.');
+}
+</script>
+{% endblock %}
